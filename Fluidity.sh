@@ -13,11 +13,6 @@
 # administer SOCAT SSL connections.
 #
 # Run Information: This script is run manually.
-#
-# Standard Output: Any output is sent to a file called /home/john/scripts/output.log
-#
-# Error Log: Any errors associated with this script are sent to a file called /home/john/scripts/errors.log
-#
 
 
 # This program is free software: you can redistribute it and/or modify
@@ -32,13 +27,6 @@
 
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
-
-# Purpose: Fluidity is a SOCAT SSL connection manager. It is based on
-# a server - client model and focuses on the creation and management
-# of SOCAT SSL connections for secure and encrypted communication.
-# More specifically, it can add - remove clients and create remove and
-# administer SOCAT SSL connections.
-# Fluidity is a GPL version 3 open source program.
 
 
 # Since BASH lacks the feature of public and private interfaces, we
@@ -2735,8 +2723,8 @@ runFluidity () {
    
    # Safety check 2: Check whether target Fluidity connection is
    # ACTIVE. If not, then take the precautionary step to delete any
-   # state information file, caused adnormal shutdown.
-   if [[ "$netstat_connection_status" == ESTABLISHED ]]
+   # state information file, caused from an adnormal shutdown.
+   if [[ "$netstat_connection_status" == ESTABLISHED ]]\
     && [ -f ~/Fluidity_Server/client.$2/connection.$2.$3/link_information.txt ]; then
       if [[ "$1" == -s ]] && lsof | grep -e $5; then
          # Information message to user.
@@ -2748,17 +2736,18 @@ runFluidity () {
          return
       fi
       
-   # Precautionaty action 1:  
+   # Precautionaty action 1: Delete any possible remaining state 
+   # information from an adnormal shutdown.
    else
    
-      # Invoke destroyRunTimeVars:
-      # Delete possible remnants from non proper shutdown.
+      # Conditionally invoke destroyRunTimeVars:
+      # Delete the runTimeVars folder.
       if [ -d ~/Fluidity_Server/client.$2/connection.$2.$3/runTimeVars ]; then
          destroyRunTimeVars $2.$3
       fi
          
-      # Invoke deleteSOCATlinkStateInformation:
-      # Delete Link State Information
+      # Conditionally invoke deleteSOCATlinkStateInformation:
+      # Delete the link state information file (link_information.txt).
       if [ -f ~/Fluidity_Server/client.$2/connection.$2.$3/link_information.txt ]; then
          deleteSOCATlinkStateInformation $2.$3
       fi
@@ -2827,8 +2816,8 @@ runFluidity () {
    # Allow traffic through the designated port.
    openPort $4
    
-   # Report to user the current ufw status.
-   sudo ufw status verbose
+   # Report to user the current ufw status for the specific port.
+   sudo ufw status verbose | grep -e $4
    
    # Invoke establishSOCATlink
    establishSOCATlink $2.$3 $5 $4 $6 $client_IP_address $client_username $7 $server_IP_address $1
@@ -2918,13 +2907,13 @@ stopFluidity () {
          setFluidityConnectionStatus $fluidity_id "TERMINATED"
          
          # Sleep for five secs.
-         sleep 5
+         # sleep 5
          
          # Invoke terminationForcePing: Repeat terminationForcePing
          terminationForcePing $fluidity_id
          
          # Wait a bit more. Sleep another five secs.
-         sleep 5
+         # sleep 5
          
          # Invoke runTimeVars: 
          # Delete the run time variables for this link.
@@ -2946,7 +2935,7 @@ stopFluidity () {
          # Sleep for 5 secs before $server_is_terminated, 
          # $client_is_terminated and $termination_force_ping get 
          # rechecked.
-         sleep 5
+         # sleep 5
          
          # Invoke terminationForcePing:
          # Do a preemptive terminationForcePing.
@@ -2963,7 +2952,7 @@ stopFluidity () {
    closePort $port
    
    # Give a ufw status feedback.
-   sudo ufw status verbose
+   sudo ufw status verbose | grep -e $port
 
 }
 
