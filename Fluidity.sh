@@ -4,7 +4,7 @@
 # Script Name: Fluidity.sh
 #
 # Authors: Charalampos Kapolonaris & Vassilios Koutlas
-# Date : 11.01.2020
+# Date : 25.01.2020
 #
 # Description: Fluidity is a SOCAT SSL connection manager. It's based on
 # a server - client model and focuses on the creation and management
@@ -306,7 +306,7 @@ getFluidityConnectionStatus () {
 	
    local SSH_ID=${1%.*}
    
-   local FILE=$(pwd)'/Fluidity_Server/client.'$SSH_ID'/connection.'$1'/runtimeVars/fluidity_connection_status'
+   local FILE=$(eval echo ~$USER)'/Fluidity_Server/client.'$SSH_ID'/connection.'$1'/runtimeVars/fluidity_connection_status'
    
    # Active connection detected. Echo its current status.
    if [ -f "$FILE" ]; then
@@ -535,15 +535,14 @@ EOF
 # the following list of essential Fluidity utilities.
    # 1. (SOCAT)
    # 2. (ecryptfs-utils) 
-   # 3. (expect)
-   # 4. (sshpass) 
-   # 5. (zenity) 
-   # 6. (Uncomplicated Firewall, UFW)
+   # 3. (expect) 
+   # 4. (zenity) 
+   # 5. (Uncomplicated Firewall, UFW)
       # Perform basic firewall configuration i.e.
          # a. Allow outgoing traffic.
          # b. Deny incoming traffic.
          # c. Allow inbound SSH connections.
-   # 7. (haveged OR rng-tools)
+   # 6. (haveged OR rng-tools)
 
 fluidityServerConfiguration () {
 
@@ -562,10 +561,6 @@ fluidityServerConfiguration () {
       # Verify and if not present install  "EXPECT"
       if ! [ -x "$(command -v expect)" ]; then
          sudo apt-get -y install expect
-      fi
-      # Verify and if not present install "SSHPASS"
-      if ! [ -x "$(command -v sshpass)" ]; then
-         sudo apt-get -y install sshpass
       fi
       # Verify and if not present install "ZENITY"
       if ! [ -x "$(command -v zenity)" ]; then
@@ -718,11 +713,10 @@ serverFolderBackboneCreation () {
    # 1. (SOCAT)
    # 2. (ecryptfs-utils) 
    # 3. (expect)
-   # 4. (sshpass) 
-   # 5. (zenity) 
-   # 6. (haveged OR rng-tools)
-   # 7. (lsof)
-   # 8. (Uncomplicated Firewall, UFW)
+   # 4. (zenity) 
+   # 5. (haveged OR rng-tools)
+   # 6. (lsof)
+   # 7. (Uncomplicated Firewall, UFW)
       # Perform basic firewall configuration i.e.
          # a. Allow outgoing traffic.
          # b. Deny incoming traffic.
@@ -745,10 +739,6 @@ fluidityClientConfiguration () {
       # Verify and if not present install "EXPECT"
       if ! [ -x "$(command -v expect)" ]; then
          sudo apt-get -y install expect
-      fi
-      # Verify and if not present install "SSHPASS"
-      if ! [ -x "$(command -v sshpass)" ]; then
-         sudo apt-get -y install sshpass
       fi
       # Verify and if not present install "ZENITY"
       if ! [ -x "$(command -v zenity)" ]; then
@@ -1244,9 +1234,8 @@ removeFluidityClient () {
    # 2. Verify the existance and if necessary install
    # the following set of utilities essential to Fluidity's operation 
       # 1. (socat)
-      # 1. (ecryptfs-utils) 
-      # 2. (expect)
-      # 3. (sshpass) 
+      # 2. (ecryptfs-utils) 
+      # 3. (expect)
       # 4. (zenity) 
       # 5. (haveged OR rng-tools)
       # 6. (lsof)
@@ -1273,10 +1262,6 @@ fluidityRemoteClientConfiguration () {
       '\n'\
       '\nif ! [ -x "$(command -v expect)" ]; then'\
       '\n   sudo apt-get -y install expect'\
-      '\nfi'\
-      '\n'\
-      '\nif ! [ -x "$(command -v sshpass)" ]; then'\
-      '\n   sudo apt-get -y install sshpass'\
       '\nfi'\
       '\n'\
       '\nif ! [ -x "$(command -v lsof)" ]; then'\
@@ -1586,10 +1571,9 @@ remoteSeekAndEncryptDaemonInstallation () {
 # 5.1 Public Functions
 
 
-# Arguments: ($1), ($2), ($3)
+# Arguments: ($1), ($2)
 # $1: Fluidity Client (SSH) Connection ID.
 # $2: Fluidity Virtual Circuit (SSL) Connection ID. 
-# $3: Server password.
 
 # Sourced Variables:
 # 1. ~/Fluidity_Server/client.$SSH_ID/basic_client_info.txt
@@ -1653,7 +1637,7 @@ addFluidityConnection () {
    
    # Invoke installSSLcertificates to do a first time SSL certificate
    # installation for connection.[SSH_ID.SSL_ID].
-   installSSLcertificates $1.$2 $client_IP_address $3 $client_username $server_IP_address
+   installSSLcertificates $1.$2 $client_IP_address $client_username $server_IP_address
    
 }
 
@@ -1841,7 +1825,7 @@ renewSSLcerts () {
       # Bad scenario: Display what netstat reports in order to proceed 
       # with debugging.
       else 
-         echo "Something went wrong. Netastat reports that Fluidity connection.$1.$2 is $netstat_connection_status"
+         echo "Something went wrong. Netstat reports that Fluidity connection.$1.$2 is $netstat_connection_status"
          return
       fi
    
@@ -1860,7 +1844,7 @@ renewSSLcerts () {
    
       # invoke reinstallSSLcerts
       # Reinstall the SSL certificates for target connection.
-      reinstallSSLcerts $fluidity_connection_ID $client_ip_add $3 $client_username $server_ip_add
+      reinstallSSLcerts $fluidity_connection_ID $client_ip_add $client_username $server_ip_add
    
       # Certificate reinstallation is done. 
       # Re-establish the SOCAT link. Based on link_information.txt
@@ -1908,7 +1892,7 @@ renewSSLcerts () {
       # Safety check 1: Check whether target client.[SSH_ID] responds to 
       # pinging. 
       if ! ping -c 3 $client_IP_address; then
-         echo "Fluidity client $1 in IP $client_IP_address is unreachable. Canceling the current certificate renewal process."
+         echo "Fluidity client $1 in IP $client_IP_address is unreachable. Canceling the renewal process."
          return
       fi
       
@@ -1958,7 +1942,7 @@ renewSSLcerts () {
       # invoke reinstallSSLcerts
       # Reinstall the SSL certificates for target connection 
       # connection.[SSH_ID.SSL_ID]
-      reinstallSSLcerts $1.$2 $client_IP_address $3 $client_username $server_IP_address
+      reinstallSSLcerts $1.$2 $client_IP_address $client_username $server_IP_address
       
       # invoke deleteDoNotEncryptToken
       # Remove the encryption immunity token from target client.
@@ -1981,12 +1965,11 @@ renewSSLcerts () {
 # 5.2 Private Functions
 
 
-# Arguments: ($1), ($2), ($3), ($4), ($5)
+# Arguments: ($1), ($2), ($3), ($4)
 # $1: Fluidity Connection ID [SSH_ID.SSL_ID] 
 # $2: Client IP address.
-# $3: Server password.
-# $4: Client Username.
-# $5: Server IP address.
+# $3: Client Username.
+# $4: Server IP address.
 
 # Sourced Variables: NONE
 
@@ -2007,10 +1990,10 @@ renewSSLcerts () {
 
 # Invokes Functions:
 # 1. checkLocalEntropy, no args
-# 2. checkRemoteEntropy, with args ($2), ($4)
+# 2. checkRemoteEntropy, with args ($2), ($3)
 # 4. clientFolderCreation, with args ($1), ${encr_password[$array_index]}
-# 5. clientSSLinstallation, with args ($1), ${c_password[$array_index]}, ($3),
-#  $server_IP_no_whitespace, $server_username, ($2), ($4)
+# 5. clientSSLinstallation, with args ($1), ${c_password[$array_index]},
+#  $server_IP_no_whitespace, $server_username, ($2), ($3)
 
 # Calls the script: NONE
 
@@ -2021,9 +2004,9 @@ installSSLcertificates () {
    # Variable declarations
 
    # Delete whitespace characters (i.e. ' ') from function argument 
-   # $5 (Server IP address). Save the outcome to variable: 
+   # $4 (Server IP address). Save the outcome to variable: 
    # $server_IP_no_whitespace.
-   local server_IP_no_whitespace="$(echo -e $5 | sed -e 's/[[:space:]]*$//')"
+   local server_IP_no_whitespace="$(echo -e $4 | sed -e 's/[[:space:]]*$//')"
    
    # Extract server's username from environment variable: $USER.
    local server_username="$USER"
@@ -2042,19 +2025,19 @@ installSSLcertificates () {
 
    # Safety check 1: Perform a client - server entropy check.
    # Important Note: Entropy should exceed 1000.
-   if [[ $(checkLocalEntropy) == 1 && $(checkRemoteEntropy $2 $4) == 1 ]]; then
+   if [[ $(checkLocalEntropy) == 1 && $(checkRemoteEntropy $2 $3) == 1 ]]; then
       # Information message to user.
       echo "Entropy test passed. Proceeding with installSSLcertificates."
       else
          echo "Entropy test failed. installSSLcertificates will not be executed."
             # Feedback to user in case of entropy failure.
-            if [[ $(checkLocalEntropy) == 0 && $(checkRemoteEntropy $2 $4) == 0 ]]; then
+            if [[ $(checkLocalEntropy) == 0 && $(checkRemoteEntropy $2 $3) == 0 ]]; then
                # Information message to user: Local and Remote entropy less than 1000.
                echo "Entropy is below minimum requirement ( less than 1000) at both ends."
             elif [[ $(checkLocalEntropy) == 0 ]]; then
                # Information message to user: Local entropy less than 1000.
                echo "Server entropy is below minimum certificate generation requirements ( less than 1000)"
-            elif [[ $(checkRemoteEntropy) == 0 ]]; then
+            elif [[ $(checkRemoteEntropy $2 $3) == 0 ]]; then
                # Information message to user: Remote entropy less than 1000.
                echo "Client entropy is below minimum certificate generation requirements (less than 1000)"
             fi
@@ -2073,7 +2056,7 @@ installSSLcertificates () {
    # Invoke clientFolderCreation
    # Create the encrypted Fluidity_Client folder over SSH on 
    # client's side 
-   clientFolderCreation $1 ${encr_password[$array_index]} $2 $4
+   clientFolderCreation $1 ${encr_password[$array_index]} $2 $3
 
    # Create the folder structure on server's side
 
@@ -2137,7 +2120,7 @@ installSSLcertificates () {
 expect << EOF
 	   spawn openssl req \
 	-new -key servercon.$1.key -x509 -days 3653 \
-	-subj "/C=GR/ST=Serres/L=Serres/O=OTE Group/OU=Installations Team/CN=$server_IP_no_whitespace" \
+	-subj "/C=GR/ST=Serres/L=Serres/O=OTE Group/OU=Infrastructure Team/CN=$server_IP_no_whitespace" \
 	-out servercon.$1.crt
 	   expect ".key:"
 	   send "${s_password[$array_index]}\n"
@@ -2155,7 +2138,7 @@ EOF
    rm *.key
 
    # Generate the SSL certificates at client's side.
-   clientSSLinstallation $1 ${c_password[$array_index]} $3 $server_IP_no_whitespace $server_username $2 $4
+   clientSSLinstallation $1 ${c_password[$array_index]} $2 $3
 
    # SECTION 5: Populate the folders with their corresponding files
 
@@ -2168,7 +2151,7 @@ EOF
    # SSH copy the corresponding *.crt 
    # file to client machine
    scp servercon.$1.crt \
-    $4@$2:Fluidity_Client/connection.$1
+    $3@$2:Fluidity_Client/connection.$1
 
    # Move every generated private, public key and plaintext password 
    # document to the SSL_Cert_Vault for future reference and permanent
@@ -2180,12 +2163,11 @@ EOF
     
 }
 
-# Arguments: ($1), ($2), ($3), ($4), ($5)
+# Arguments: ($1), ($2), ($3), ($4)
 # $1: Fluidity Connection ID [SSH_ID.SSL_ID] 
 # $2: Client IP address.
-# $3: Server password.
-# $4: Client Username.
-# $5: Server IP address.
+# $3: Client Username.
+# $4: Server IP address.
 
 # Sourced Variables: NONE
 
@@ -2207,8 +2189,8 @@ EOF
 # 1. checkLocalEntropy, no args
 # 2. checkRemoteEntropy, with args ($2), ($4)
 # 3. deleteSSLpair, with args ($1)
-# 4. clientSSLinstallation, with args ($1), ${c_password[$array_index]}, ($3),
-#  $server_IP_no_whitespace, $server_username, ($2), ($4)
+# 4. clientSSLinstallation, with args ($1), ${c_password[$array_index]},
+#  ($2), ($3)
 
 # Calls the script: NONE
 
@@ -2221,7 +2203,7 @@ reinstallSSLcerts () {
    # Delete whitespace characters (i.e. ' ') from function argument 
    # $5 (Server IP address). Save the outcome to variable: 
    # $server_IP_no_whitespace.
-   local server_IP_no_whitespace="$(echo -e $5 | sed -e 's/[[:space:]]*$//')"
+   local server_IP_no_whitespace="$(echo -e $4 | sed -e 's/[[:space:]]*$//')"
    
    # Extract server's username from environment variable: $USER.
    local server_username="$USER"
@@ -2240,7 +2222,7 @@ reinstallSSLcerts () {
 
    # Safety check 1: Perform a client - server entropy check.
    # Important Note: Entropy should exceed 1000.
-   if [[ $(checkLocalEntropy) == 1 && $(checkRemoteEntropy $2 $4) == 1 ]]; then
+   if [[ $(checkLocalEntropy) == 1 && $(checkRemoteEntropy $2 $3) == 1 ]]; then
       # Information message to user.
       echo "Entropy test passed. Proceeding with reinstallSSLcertificates."
       else
@@ -2252,7 +2234,7 @@ reinstallSSLcerts () {
             elif [[ $(checkLocalEntropy) == 0 ]]; then
                # Information message to user: Local entropy less than 1000.
                echo "Server entropy is below minimum certificate generation requirements ( less than 1000)"
-            elif [[ $(checkRemoteEntropy) == 0 ]]; then
+            elif [[ $(checkRemoteEntropy $2 $3) == 0 ]]; then
                # Information message to user: Remote entropy less than 1000.
                echo "Client entropy is below minimum certificate generation requirements (less than 1000)"
             fi
@@ -2316,7 +2298,7 @@ reinstallSSLcerts () {
 expect << EOF
 	   spawn openssl req \
 	-new -key servercon.$1.key -x509 -days 3653 \
-	-subj "/C=GR/ST=Serres/L=Serres/O=OTE Group/OU=Installations Team/CN=$server_IP_no_whitespace" \
+	-subj "/C=GR/ST=Serres/L=Serres/O=OTE Group/OU=Infrastructure Team/CN=$server_IP_no_whitespace" \
 	-out servercon.$1.crt
 	   expect ".key:"
 	   send "${s_password[$array_index]}\n"
@@ -2335,7 +2317,7 @@ EOF
 
    # Invoke clientSSLinstallation
    # Generate the SSL certificates at client's side.
-   clientSSLinstallation $1 ${c_password[$array_index]} $3 $server_IP_no_whitespace $server_username $2 $4
+   clientSSLinstallation $1 ${c_password[$array_index]} $2 $3
 
    # SECTION 4: Populate the folders with their corresponding files
 
@@ -2348,7 +2330,7 @@ EOF
    # SSH copy the corresponding *.crt 
    # file to client machine
    scp servercon.$1.crt \
-    $4@$2:Fluidity_Client/connection.$1
+    $3@$2:Fluidity_Client/connection.$1
 
    # Move every generated private, public key and plaintext password 
    # document to the SSL_Cert_Vault for future reference and permanent
@@ -2423,14 +2405,11 @@ clientFolderCreation () {
   
 }
 
-# Arguments: ($1), ($2), ($3), ($4), ($5), ($6)
+# Arguments: ($1), ($2), ($3), ($4)
 # $1: Fluidity Connection ID [SSH_ID.SSL_ID]
 # $2: Client certificate password.
-# $3: Server Password.
-# $4: Server IP.
-# $5: Server Username.
-# $6: Client IP address.
-# $7: Client Username.
+# $3: Client IP address.
+# $4: Client Username.
 
 # Sourced Variables: NONE
 
@@ -2439,7 +2418,7 @@ clientFolderCreation () {
 # Global Variables in use: NONE
 
 # Generates:
-# 1. Bash script (.sh): genSCRIPT_clientSSLinstallation.sh $1 $2 $3 $4 $5 $6
+# 1. Bash script (.sh): genSCRIPT_clientSSLinstallation.sh $1 $2 $3
 # 2. Client Private key (KEY) File: clientcon.$1.key
 # 3. Client Public key (CRT) File: clientcon.$1.crt
 # 4. Client Container file (PEM): clientcon.$1.pem
@@ -2448,7 +2427,7 @@ clientFolderCreation () {
 
 # Calls the script:
 # 1. genSCRIPT_clientSSLinstallation.sh, with args ($1), ($2) 
-# ($3), ($4), ($5), ($6)
+# ($3)
 # in ~/Fluidity_Server/Generated_Scripts
 
 # Function Description: 
@@ -2472,7 +2451,7 @@ clientSSLinstallation () {
       echo -e \
 '\ncd ~/Fluidity_Client/connection.$1'\
 '\n'\
-'\nclient_IP="$(echo -e $6 | sed -e 's/[[:space:]]*$//')"'\
+'\nclient_IP_no_whitespace="$(echo -e $3 | sed -e 's/[[:space:]]*$//')"'\
 '\n'\
 '\nopenssl genpkey -algorithm RSA -out clientcon.$1.key \\\n'\
 '-aes-256-cbc -pass pass:$2'\
@@ -2480,7 +2459,7 @@ clientSSLinstallation () {
 '\nexpect << EOF\n'\
 '   spawn openssl req \\\n'\
 '-new -key clientcon.$1.key -x509 -days 3653 \\\n'\
-'-subj "/C=GR/ST=Serres/L=Serres/O=OTE Group/OU=Installations Team/CN=$client_IP" \\\n'\
+'-subj "/C=GR/ST=Serres/L=Serres/O=OTE Group/OU=Infrastructure Team/CN=$client_IP_no_whitespace" \\\n'\
 '-out clientcon.$1.crt\n'\
 '   expect ".key:"\n'\
 '   send "$2\\n"\n'\
@@ -2491,17 +2470,21 @@ clientSSLinstallation () {
 '\n'\
 '\nchmod 600 clientcon.$1.key clientcon.$1.pem'\
 '\n'\
-'\nsshpass -p '\$3' scp -o StrictHostKeyChecking=no clientcon.$1.crt clientcon.$1.pem $5@$4:Fluidity_Server'\
-'\n'\
-'\nrm clientcon.$1.key clientcon.$1.crt' > \
+'\nrm clientcon.$1.key' > \
       ~/Fluidity_Server/Generated_Scripts/genSCRIPT_clientSSLinstallation.sh
       chmod 700 ~/Fluidity_Server/Generated_Scripts/genSCRIPT_clientSSLinstallation.sh
    
    fi
    
    # SSH remotely execute genSCRIPT_clientSSLinstallation.sh
-   ssh $7@$6 'bash -s' < ~/Fluidity_Server/Generated_Scripts/genSCRIPT_clientSSLinstallation.sh \
-	$1 $2 $3 $4 $5 $6
+   ssh $4@$3 'bash -s' < ~/Fluidity_Server/Generated_Scripts/genSCRIPT_clientSSLinstallation.sh \
+	$1 $2 $3
+
+   # Fetch the client SSL certificates from the remote machine.
+   scp $4@$3:Fluidity_Client/connection.$1/clientcon.$1.crt \
+    ~/Fluidity_Server
+   scp $4@$3:Fluidity_Client/connection.$1/clientcon.$1.pem \
+    ~/Fluidity_Server
 
 }
 
@@ -2828,7 +2811,31 @@ runFluidity () {
 # $1: Fluidity Client (SSH) Connection ID.
 # $2: Fluidity Virtual Circuit (SSL) Connection ID.
 
-# Sourced Variables: NONE
+# Sourced Variables:
+# 1. ~/Fluidity_Server/client.$SSH_ID/connection.$1/link_information.txt
+      # Case 1: $fluidity_flavour_choice equals to -s (i.e. serial link)
+      
+         # 1. $fluidity_connection_ID
+         # 2. $server_serial_int
+         # 3. $server_listening_port
+         # 4. $client_serial_int
+         # 5. $client_ip_add
+         # 6. $client_username
+         # 7. $link_serial_speed
+         # 8. $server_ip_add
+         # 9. $fluidity_flavour_choice
+         
+      # Case 2: fluidity_flavour_choice equals to -t (i.e. tunnel link)
+      
+         # 1. $fluidity_connection_ID
+         # 2. $server_tunnel_ip
+         # 3. $server_listening_port
+         # 4. $client_tunnel_ip
+         # 5. $client_ip_add
+         # 6. $client_username
+         # 7. $tunneling_network_subnet_mask
+         # 8. $server_ip_add
+         # 9. $fluidity_flavour_choice
 
 # Intershell File Variables in use: 
 # 1. $fluidity_connection_status (setFluidityConnectionStatus, getFluidityConnectionStatus)
@@ -2853,6 +2860,9 @@ runFluidity () {
 
 stopFluidity () {
 
+   # Derive the Fluidity ID
+   local fluidity_id=$(echo $1.$2)
+
    # Safety check 1: Check whether targer connection exists.
    if [ ! -d ~/Fluidity_Server/client.$1/connection.$1.$2 ]; then
       # Information message to user.
@@ -2865,10 +2875,37 @@ stopFluidity () {
       # Information message to user.
       echo "Link $1.$2 is currently INACTIVE."
       return
+   # If the connection is ACTIVE, source link_information.txt
+   else
+      # Import the following set of variables:
+   
+      # Case 1: $fluidity_flavour_choice equals to -s (i.e. serial link)
+      
+         # 1. $fluidity_connection_ID
+         # 2. $server_serial_int
+         # 3. $server_listening_port
+         # 4. $client_serial_int
+         # 5. $client_ip_add
+         # 6. $client_username
+         # 7. $link_serial_speed
+         # 8. $server_ip_add
+         # 9. $fluidity_flavour_choice
+         
+      # Case 2: $fluidity_flavour_choice equals to -t (i.e. tunnel link)
+      
+         # 1. $fluidity_connection_ID
+         # 2. $server_tunnel_ip
+         # 3. $server_listening_port
+         # 4. $client_tunnel_ip
+         # 5. $client_ip_add
+         # 6. $client_username
+         # 7. $tunneling_network_subnet_mask
+         # 8. $server_ip_add
+         # 9. $fluidity_flavour_choice
+   
+      source ~/Fluidity_Server/client.$1/connection.$1.$2/link_information.txt
    fi
 
-   # Derive the Fluidity ID
-   local fluidity_id=$(echo $1.$2)
 
    # Fluidity Finite State Machine 
    # State change to: TERMINATING
@@ -2879,19 +2916,61 @@ stopFluidity () {
    
    # Get the server's port number.
    port=$(getPort $fluidity_id)
-   # Use function fuser, with server port number ($port), to terminate 
-   # the local server SOCAT process. When the process is terminated, 
-   # both infinite loops within runPersistentSOCATServer & 
-   # runPersistentSOCATClient will restart and subsequently break from
-   # execution, due to $allow_execution being 0.
-   sudo fuser -k $port/tcp
    
-   # Safety Check 1: Invoke terminationForcePing
-   # Here, we cover the possibility that Fluidity lost its client, thus
-   # runPersistentSOCATClient is currently in a PINGING state and is 
-   # having an active sleeping process that should first be terminated, 
-   # before folder runTimeVars is erased.
-   terminationForcePing $fluidity_id
+   # Use netstat and pipe the output to grep. According to
+   # $server_listening_port grep the line referring to that specific 
+   # port and save it to $netstat_connection_status_string.
+   local netstat_connection_status_string=$(netstat -atnp 2>/dev/null | grep $port)
+   
+   # The target is to extract the remote port to $remote_port.
+   # To do that, use a double cut to compartmentalize the line. 
+   # First, fetch the fifth element. Use
+   # the whitespace ' ' as a delimeter character.
+   # Second, fetch the 2nd element. Use the semicolon ':' as a delimeter
+   # character.
+   # Save the result to $remote_port.
+   local remote_port=$(echo $netstat_connection_status_string | cut -d' ' -f 5 | cut -d ':' -f 2)
+   
+   # Use cut to compartmentalize the line. Fetch the sixth element. Use
+   # the whitespace ' ' as a delimeter character. Save the result
+   # to $netstat_connection_status.
+   local netstat_connection_status=$(echo $netstat_connection_status_string | cut -d' ' -f 6)
+   
+   # Case 1: The connection is ESTABLISHED. Kill the client AND server 
+   # SOCAT connection process.
+   if [[ "$netstat_connection_status" == ESTABLISHED ]]; then
+
+      # Use function fuser, with client port number ($remote_port), 
+      # to terminate the remote client SOCAT process. When the process 
+      # is terminated, both infinite loops within 
+      # runPersistentSOCATServer & runPersistentSOCATClient will restart
+      # and subsequently break from execution, due to $allow_execution 
+      # being 0.
+      ssh $client_username@$client_ip_add sudo fuser -k $remote_port/tcp
+      
+      # Use function fuser, with server port number ($port), to terminate 
+      # the local server SOCAT process. When the process is terminated, 
+      # both infinite loops within runPersistentSOCATServer & 
+      # runPersistentSOCATClient will restart and subsequently break from
+      # execution, due to $allow_execution being 0.
+      sudo fuser -k $port/tcp
+   
+   # Case 2: The connection is lost. Kill the server SOCAT connection 
+   # process.
+   else 
+      
+      # Safety Check 3: Invoke terminationForcePing
+      # Here, we cover the possibility that Fluidity lost its client, thus
+      # runPersistentSOCATClient is currently in SLEEPING state and is 
+      # having an active sleeping process that should first be terminated, 
+      # before folder runTimeVars is erased.
+      terminationForcePing $fluidity_id
+   
+      # Command description above.
+      sudo fuser -k $port/tcp
+      
+   fi
+   
    
    # Repeatedly check whether $server_is_terminated, $client_is_terminated
    # and termination_force_ping are all equal to 1. If all are 1,
@@ -2906,14 +2985,8 @@ stopFluidity () {
          # State change to: TERMINATED
          setFluidityConnectionStatus $fluidity_id "TERMINATED"
          
-         # Sleep for five secs.
-         # sleep 5
-         
          # Invoke terminationForcePing: Repeat terminationForcePing
          terminationForcePing $fluidity_id
-         
-         # Wait a bit more. Sleep another five secs.
-         # sleep 5
          
          # Invoke runTimeVars: 
          # Delete the run time variables for this link.
@@ -2930,12 +3003,7 @@ stopFluidity () {
       
          # Fluidity Finite State Machine 
          # State change to: TERMINATION PENDING
-         setFluidityConnectionStatus $fluidity_id "TERMINATION PENDING"
-         
-         # Sleep for 5 secs before $server_is_terminated, 
-         # $client_is_terminated and $termination_force_ping get 
-         # rechecked.
-         # sleep 5
+         setFluidityConnectionStatus $fluidity_id "TERMINATION_PENDING"
          
          # Invoke terminationForcePing:
          # Do a preemptive terminationForcePing.
@@ -2979,7 +3047,7 @@ stopFluidity () {
 
 openPort () {
    
-   # ufw rule change for port $1
+   # UFW: Rule change for port $1
    sudo ufw allow $1
    
 }
@@ -3004,7 +3072,7 @@ openPort () {
 
 closePort () {
    
-    # ufw rule change for port $1
+    # UFW: Rule change for port $1
    sudo ufw deny $1
    
 }
@@ -3040,20 +3108,25 @@ closePort () {
 
 terminationForcePing () {
    
-   # kill -0 verifies that a process ID exists.
+   # kill -0 verifies the existance of a sleeping process ID.
 
-   # sleep process $sleep_pid doesn't exist and runPersistentSOCATClient
-   # is currently active.
+   # Case 1: The improper scenario.
+   # A garbage value has remained from a previous sleeping process. 
+   # kill -0 reports that the specific $sleep_pid doesn't exist while 
+   # runPersistentSOCATClient is currently in ACTIVE state.
    if ! kill -0 $(getSleepPid $1); then
 
       # Information message to user.
       echo "Not in sleep mode"
-
+   
+   # Case 2: The proper scenario.
+   # $sleep_id is 0. There is no sleeping process to kill.
    elif [[ $(getSleepPid $1) -eq 0 ]]; then
 
       # Information message to user.
-      echo "Not in sleep mode. sleep_pid is 0."
+      echo "Not in sleep mode. sleep_pid = 0."
 
+   # Case 3: Kill the sleeping process.
    # A sleeping process is currently running. We fetch the PID from
    # Intershall File Variable $sleep_pid and request its termination.
    else
@@ -3065,19 +3138,45 @@ terminationForcePing () {
    fi
    
    # The current sleeping process is terminated. Hence, erase the 
-   # previous pid, by setting $sleep_pid to 0.
+   # previous pid and get $sleep_id ready for the next sleeping process,
+   # by setting $sleep_pid to 0.
    setSleepPid $1 0
 
-   # setTerminationForcePing successfuly completed execution. 
-   # Set termination_force_ping to 1.
+   # Set $termination_force_ping to 1.
+   # Signal to calling function that terminationForcePing 
+   # completed successfully.
    setTerminationForcePing $1 1
 
 }
 
 # Arguments: ($1)
-# $1: Fluidity Connection ID [SSH_ID.SSL_ID]
+# $1. Fluidity Connection ID [SSH_ID.SSL_ID]
 
-# Sourced Variables: NONE
+# Sourced Variables:
+# 1. ~/Fluidity_Server/client.$SSH_ID/connection.$1/link_information.txt
+      # Case 1: $fluidity_flavour_choice equals to -s (i.e. serial link)
+      
+         # 1. $fluidity_connection_ID
+         # 2. $server_serial_int
+         # 3. $server_listening_port
+         # 4. $client_serial_int
+         # 5. $client_ip_add
+         # 6. $client_username
+         # 7. $link_serial_speed
+         # 8. $server_ip_add
+         # 9. $fluidity_flavour_choice
+         
+      # Case 2: fluidity_flavour_choice equals to -t (i.e. tunnel link)
+      
+         # 1. $fluidity_connection_ID
+         # 2. $server_tunnel_ip
+         # 3. $server_listening_port
+         # 4. $client_tunnel_ip
+         # 5. $client_ip_add
+         # 6. $client_username
+         # 7. $tunneling_network_subnet_mask
+         # 8. $server_ip_add
+         # 9. $fluidity_flavour_choice
 
 # Intershell File Variables in use: 
 # 1. $fluidity_connection_status (setFluidityConnectionStatus, getFluidityConnectionStatus)
@@ -3091,36 +3190,121 @@ terminationForcePing () {
 
 # Invokes Functions:
 # 1. terminationForcePing, with args ($1)
-# 2. internalForcePing, with args ($1)
-# 3. destroyRunTimeVars, with args ($1)
+# 2. destroyRunTimeVars, with args ($1)
 
 # Calls the script: NONE
 
-# Function Description: A special stopFluidity only called by 
-# renewSSLcertificates when SSL substitution is initiated. The only 
-# difference from stopFluidity is that it doesn't include functions
+# Function Description: A special stopFluidity called only by 
+# renewSSLcertificates when a SSL substitution is requested. The 
+# difference from normal stopFluidity is the absence of functions
 # deleteSOCATlinkStateInformation and closePort.
 
 stopFluidityToRenewSSLcerts () {
 
+   # Derive the SSH ID from Fluidity ID
+   local SSH_ID=${1%.*}
+
+   # Safety check 1: Check whether targer connection exists.
+   if [ ! -d ~/Fluidity_Server/client.$SSH_ID/connection.$1 ]; then
+      # Information message to user.
+      echo "No such link exists"
+      return
+   fi
+   
+   # Safety check 2: Check whether the link is INACTIVE.
+   if [ ! -f ~/Fluidity_Server/client.$SSH_ID/connection.$1/link_information.txt ]; then
+      # Information message to user.
+      echo "Link $1 is currently INACTIVE."
+      return
+   # If the connection is ACTIVE, source link_information.txt
+   else
+      # Import the following set of variables:
+   
+      # Case 1: $fluidity_flavour_choice equals to -s (i.e. serial link)
+      
+         # 1. $fluidity_connection_ID
+         # 2. $server_serial_int
+         # 3. $server_listening_port
+         # 4. $client_serial_int
+         # 5. $client_ip_add
+         # 6. $client_username
+         # 7. $link_serial_speed
+         # 8. $server_ip_add
+         # 9. $fluidity_flavour_choice
+         
+      # Case 2: $fluidity_flavour_choice equals to -t (i.e. tunnel link)
+      
+         # 1. $fluidity_connection_ID
+         # 2. $server_tunnel_ip
+         # 3. $server_listening_port
+         # 4. $client_tunnel_ip
+         # 5. $client_ip_add
+         # 6. $client_username
+         # 7. $tunneling_network_subnet_mask
+         # 8. $server_ip_add
+         # 9. $fluidity_flavour_choice
+   
+      source ~/Fluidity_Server/client.$SSH_ID/connection.$1/link_information.txt
+   fi
+
 
    # Fluidity Finite State Machine 
-   # State change to: TERMINATING, SSL renewing
-   setFluidityConnectionStatus $1 "TERMINATING, SSL renewing"
+   # State change to: TERMINATING
+   setFluidityConnectionStatus $1 "SSL_TERMINATING"
    # Send a termination signal to both runPersistentSOCATClient and 
    # runPersistentSOCATServer by turning allow_execution to 0.
    setAllowExecution $1 0 
    
    # Get the server's port number.
    port=$(getPort $1)
-   # Use function fuser, with server port number ($port), to terminate 
-   # the local server SOCAT process. When the process is terminated, 
-   # both infinite loops within runPersistentSOCATServer & 
-   # runPersistentSOCATClient will restart and subsequently break from
-   # execution, due to $allow_execution being 0.
-   sudo fuser -k $port/tcp
    
-   # Safety Check 1: Invoke terminationForcePing
+   # Use netstat and pipe the output to grep. According to
+   # $server_listening_port grep the line referring to that specific 
+   # port and save it to $netstat_connection_status_string.
+   local netstat_connection_status_string=$(netstat -atnp 2>/dev/null | grep $port)
+   
+   # The target is to extract the remote port to $remote_port.
+   # To do that, use a double cut to compartmentalize the line. 
+   # First, fetch the fifth element. Use
+   # the whitespace ' ' as a delimeter character.
+   # Second, fetch the 2nd element. Use the semicolon ':' as a delimeter
+   # character.
+   # Save the result to $remote_port.
+   local remote_port=$(echo $netstat_connection_status_string | cut -d' ' -f 5 | cut -d ':' -f 2)
+   
+   # Use cut to compartmentalize the line. Fetch the sixth element. Use
+   # the whitespace ' ' as a delimeter character. Save the result
+   # to $netstat_connection_status.
+   local netstat_connection_status=$(echo $netstat_connection_status_string | cut -d ' ' -f 6)
+   
+   # Case 1: The connection is ESTABLISHED. Kill the client AND server 
+   # connection process.
+   if [[ "$netstat_connection_status" == ESTABLISHED ]]; then
+
+      # Use function fuser, with client port number ($remote_port), 
+      # to terminate the remote client SOCAT process. When the process 
+      # is terminated, both infinite loops within 
+      # runPersistentSOCATServer & runPersistentSOCATClient will restart
+      # and subsequently break from execution, due to $allow_execution 
+      # being 0.
+      ssh $client_username@$client_ip_add sudo fuser -k $remote_port/tcp
+      
+      # Use function fuser, with server port number ($port), to terminate 
+      # the local server SOCAT process. When the process is terminated, 
+      # both infinite loops within runPersistentSOCATServer & 
+      # runPersistentSOCATClient will restart and subsequently break from
+      # execution, due to $allow_execution being 0.
+      sudo fuser -k $port/tcp
+   
+   # Case 2: The connection is lost. Kill the server connection process.
+   else 
+   
+      # Command description above.
+      sudo fuser -k $port/tcp
+      
+   fi
+   
+   # Safety Check 3: Invoke terminationForcePing
    # Here, we cover the possibility that Fluidity lost its client, thus
    # runPersistentSOCATClient is currently in a PINGING state and is 
    # having an active sleeping process that should first be terminated, 
@@ -3137,42 +3321,33 @@ stopFluidityToRenewSSLcerts () {
       if [[ $(getServerIsTerminated $1) -eq 1 && $(getClientIsTerminated $1) -eq 1 && $(getTerminationForcePing $1) -ne 0 ]]; then
          
          # Fluidity Finite State Machine 
-         # State change to: TERMINATED, SSL renewing
-         setFluidityConnectionStatus $1 "TERMINATED, SSL renewing"
+         # State change to: TERMINATED
+         setFluidityConnectionStatus $1 "SSL_TERMINATED"
          
-         # Sleep for five secs.
-         sleep 5
-
          # Invoke terminationForcePing: Repeat terminationForcePing
          terminationForcePing $1
-
-         # Wait a bit more. Sleep another five secs.
-         sleep 5
-
+         
          # Invoke runTimeVars: 
          # Delete the run time variables for this link.
          destroyRunTimeVars $1
          
          # Break from the infinite WHILE
          break
+         
       else
       
          # Fluidity Finite State Machine 
-         # State change to: TERMINATION PENDING, SSL renewing
-         setFluidityConnectionStatus $1 "TERMINATION PENDING, SSL renewing"
+         # State change to: TERMINATION PENDING
+         setFluidityConnectionStatus $1 "SSL_TERMINATION_PENDING"
          
-         # Sleep for 5 secs before $server_is_terminated, 
-         # $client_is_terminated and $termination_force_ping get 
-         # rechecked.
-         sleep 5
-
          # Invoke terminationForcePing:
          # Do a preemptive terminationForcePing.
          terminationForcePing $1
-
+         
          # Proceed to rechecking
-
+         
       fi
+      
    done
 
 }
@@ -3486,19 +3661,12 @@ runPersistentSOCATServer () {
    setServerIsTerminated $1 0
    
    # Main Loop: Adding persistency to the SOCAT server process.
-   while [ true ]; 
+   while [ $(getAllowExecution $1) -eq 1 ]; 
    do
    
-      # $allow_execution is 0. Execution stops here.
-      if [ $(getAllowExecution $1) -eq 0 ]; then
+      # allow_execution is 1. Initiate the SOCAT server process.
+      runSOCATserver $1 $2 $3 $4 $5
       
-         # Break the Loop.
-         break
-         
-      else
-         # allow_execution is 1. Initiate the SOCAT server process.
-         runSOCATserver $1 $2 $3 $4 $5
-      fi
    done
    
    # Signal that runPersistentSOCATServer has broken out from the main
@@ -3718,7 +3886,7 @@ runPersistentSOCATClient () {
    # Stop runPersistentSOCATClient if $allow_execution is 0.
    if [ $(getAllowExecution $1) -eq 0 ]; then
          # Information message.
-         echo "stopFluidity is initiated. Cancelling runPersistentSOCATClient."
+         echo "stopFluidity requested. Cancelling runPersistentSOCATClient."
          return
    fi
 
@@ -3745,140 +3913,126 @@ runPersistentSOCATClient () {
    echo "Outside the Loop. Initiating."
    
    # Main Loop: Adding persistency to the SOCAT client process.
-   while [ true ];
+   while [ $(getAllowExecution $1) -eq 1 ];
    do
       
-      # Debugging information message 2
-      echo "Inside the Loop."
-      echo "Allow execution is: $allow_execution"
+      # Ping target client $4 6 times.
+
+      # Fluidity Finite State Machine 
+      # State change to: PINGING
+      setFluidityConnectionStatus $1 "PINGING"
+
+      # Fluidity client responds.
+      if ping -c 6 $4; then
       
-      # $allow_execution is 0. Execution stops here.
-      if [ $(getAllowExecution $1) -eq 0 ]; then
-      
-         # Debugging information message 3
-         echo "Breaking the Loop."
+         # Reset $ping_delay to 2 seconds.
+         ping_delay=2
          
-         # Break the Loop.
-         break
+         # Debugging information message 4
+         echo "Inside the Loop and proceeding with runSOCATclient."
+         echo "Ping delay is: $ping_delay"
          
-      # $allow_execution is 1. Check client availability by pinging its 
-      # target IP address.
+         # Invoke checkForConnectionFolderAndDecrypt:
+         # Client communication has been established. Now see whether
+         # the client folder is decrypted. If not, then decrypt it.
+         checkForConnectionFolderAndDecrypt $1 $4 $5
+         
+         # Fluidity Finite State Machine 
+         # State change to: ACTIVE
+         setFluidityConnectionStatus $1 "ACTIVE"
+
+         # Update intershell variable $ping_delay
+         setPingDelay $1 $ping_delay
+         
+         # Invoke runSOCATclient:
+         # Client is available and the FLUIDITY home folder in remote 
+         # machine is decrypted. Proceed with runSOCATclient.
+         runSOCATclient $1 $2 $3 $4 $5 $6 $7 $8
+         
+         if [[ $(getFluidityConnectionStatus $1) == "TERMINATING" || \
+         $(getFluidityConnectionStatus $1) == "TERMINATION_PENDING" ]]; then 
+            echo "Initiating encryptClient in state: $(getFluidityConnectionStatus $1)"
+            # Invoke encryptClient
+            # stopFluidity is requested. Before exiting, encrypt the client
+            # connection folder.
+            encryptClient $1 $4 $5
+         fi
+         
+      # Fluidity client doesn't respond.
       else
       
-         # Ping target client $4 6 times.
-
-         # Fluidity Finite State Machine 
-         # State change to: PINGING
-         setFluidityConnectionStatus $1 "PINGING"
-
-         # Fluidity client responds.
-         if ping -c 6 $4; then
+         # Debugging information message 5
+         echo "Inside the Loop, but Pinging failed."
+         echo "Ping delay is: $ping_delay"
          
-            # Reset $ping_delay to 2 seconds.
-            ping_delay=2
-            
-            # Debugging information message 4
-            echo "Inside the Loop and proceeding with runSOCATclient."
+         # Fluidity Finite State Machine 
+         # State change to: SLEEPING
+         setFluidityConnectionStatus $1 "SLEEPING"
+
+         # Update intershell variable $ping_delay
+         setPingDelay $1 $ping_delay
+         
+         # Case 1:
+         # $ping_delay accumulated more than 600 secs.
+         # From there on pinging will occur every 600 seconds.
+         if [[ $ping_delay -ge 600 ]]; then
+         
+            # Debugging information message 6
+            echo "Inside the Loop. Pinging above 600secs."
             echo "Ping delay is: $ping_delay"
             
-            # Invoke checkForConnectionFolderAndDecrypt:
-            # Client communication has been established. Now see whether
-            # the client folder is decrypted. If not, then decrypt it.
-            checkForConnectionFolderAndDecrypt $1 $4 $5
-            
-            # Fluidity Finite State Machine 
-            # State change to: ACTIVE
-            setFluidityConnectionStatus $1 "ACTIVE"
+            # Set $ping_delay to 600.
+            ping_delay=600
 
-            # Update intershell variable $ping_delay
-            setPingDelay $1 $ping_delay
+            # Information message to user.
+            echo "Client $4 is unreachable. Retrying in 600 seconds or forcePing."
             
-            # Invoke runSOCATclient:
-            # Client is available and the FLUIDITY home folder in remote 
-            # machine is decrypted. Proceed with runSOCATclient.
-            runSOCATclient $1 $2 $3 $4 $5 $6 $7 $8
+            # 1. Request a 600 secs sleeping process. 
+            # 2. Put the sleep process in the background and release 
+            # the terminal.
+            # 3. Save the sleep process pid into $temp_pid. 
+            sleep 600 & temp_pid=$!
+
+            # Save $temp_pid into Intershell File Variable $sleep_pid
+            setSleepPid $1 $temp_pid
             
-         # Fluidity client doesn't respond.
+            # Bring sleep back in the foreground, and delay everything 
+            # for 600 secs.
+            wait $sleep_pid
+            
+         # Case 2:
+         # $ping_delay is less than 600 secs.
+         # Next ping in $ping_delay secs.
          else
          
-            # Debugging information message 5
-            echo "Inside the Loop, but Pinging failed."
+            # Debugging information message 7
+            echo "Inside the Loop. Pinging below 600secs."
             echo "Ping delay is: $ping_delay"
             
-            # Fluidity Finite State Machine 
-            # State change to: SLEEPING
-            setFluidityConnectionStatus $1 "SLEEPING"
-
-            # Update intershell variable $ping_delay
-            setPingDelay $1 $ping_delay
+            echo "Client $4 is unreachable. Retrying in $ping_delay seconds or forcePing."
             
-            # Case 1:
-            # $ping_delay accumulated more than 600 secs.
-            # From there on pinging will occur every 600 seconds.
-            if [[ $ping_delay -ge 600 ]]; then
+            # 1. Request a $ping_delay secs sleeping process. 
+            # 2. Put the sleep process in the background and release 
+            # the terminal.
+            # 3. Save the sleep process pid into $temp_pid.
+            sleep $ping_delay & temp_pid=$!
+
+            # Save $temp_pid into Intershell File Variable $sleep_pid
+            setSleepPid $1 $temp_pid
             
-               # Debugging information message 6
-               echo "Inside the Loop. Pinging above 600secs."
-               echo "Ping delay is: $ping_delay"
-               
-               # Set $ping_delay to 600.
-               ping_delay=600
-
-               # Information message to user.
-               echo "Client $4 is unreachable. Retrying in 600 seconds or forcePing."
-               
-               # 1. Request a 600 secs sleeping process. 
-               # 2. Put the sleep process in the background and release 
-               # the terminal.
-               # 3. Save the sleep process pid into $temp_pid. 
-               sleep 600 & temp_pid=$!
-
-               # Save $temp_pid into Intershell File Variable $sleep_pid
-               setSleepPid $1 $temp_pid
-               
-               # Bring sleep back in the foreground, and delay everything 
-               # for 600 secs.
-               wait $sleep_pid
-               
-            # Case 2:
-            # $ping_delay is less than 600 secs.
-            # Next ping in $ping_delay secs.
-            else
+            # Bring sleep back in the foreground, and delay everything 
+            # for $ping_delay secs.
+            wait $sleep_pid
             
-               # Debugging information message 7
-               echo "Inside the Loop. Pinging below 600secs."
-               echo "Ping delay is: $ping_delay"
-               
-               echo "Client $4 is unreachable. Retrying in $ping_delay seconds or forcePing."
-               
-               # 1. Request a $ping_delay secs sleeping process. 
-               # 2. Put the sleep process in the background and release 
-               # the terminal.
-               # 3. Save the sleep process pid into $temp_pid.
-               sleep $ping_delay & temp_pid=$!
-
-               # Save $temp_pid into Intershell File Variable $sleep_pid
-               setSleepPid $1 $temp_pid
-               
-               # Bring sleep back in the foreground, and delay everything 
-               # for $ping_delay secs.
-               wait $sleep_pid
-               
-               # Increase the $ping_delay counter according to the 
-               # following formula.
-               let ping_delay=$(expr $ping_delay \* 3)
-               
-            fi
+            # Increase the $ping_delay counter according to the 
+            # following formula.
+            let ping_delay=$(expr $ping_delay \* 3)
             
          fi
          
       fi
       
    done
-
-   # Invoke encryptClient
-   # Upon exiting the main loop, re-encrypt the client.
-   encryptClient $1 $4 $5
    
    # Debugging information message 8
    echo "Outside the Loop. Main Loop terminated."
@@ -4321,35 +4475,42 @@ encryptClient () {
 # the client that server lost communication.
 
 forcePing () {
-	
-	local fluidity_id=$(echo $1.$2)
    
-   # kill -0 verifies that a process ID exists.
+   # Derive the fluidity_id
+   local fluidity_id=$(echo $1.$2)
+   
+   # kill -0 verifies the existance of a sleeping process ID.
 
-   # sleep process $sleep_pid doesn't exist and runPersistentSOCATClient
-   # is currently active.
+   # Case 1: The improper scenario.
+   # A garbage value has remained from a previous sleeping process. 
+   # kill -0 reports that the specific $sleep_pid doesn't exist while 
+   # runPersistentSOCATClient is currently in ACTIVE state.
    if ! kill -0 $(getSleepPid $fluidity_id); then
-   
+
       # Information message to user.
-      echo "not in sleep mode"
-      
+      echo "Not in sleep mode"
+   
+   # Case 2: The proper scenario.
+   # $sleep_id is 0. There is no sleeping process to kill.
    elif [[ $(getSleepPid $fluidity_id) -eq 0 ]]; then
-   
+
       # Information message to user.
-      echo "Not in sleep mode. sleep_pid is 0."
-      
+      echo "Not in sleep mode. sleep_pid = 0."
+
+   # Case 3: Kill the sleeping process.
    # A sleeping process is currently running. We fetch the PID from
    # Intershall File Variable $sleep_pid and request its termination.
    else
-   
+
       # Information message to user.
       echo "in sleep mode and shall be terminated. sleep_pid: $(getSleepPid $1)"
       kill $(getSleepPid $fluidity_id)
-      
+
    fi
    
-   # The current sleeping process is terminated. Hence, erase the 
-   # previous pid, by setting $sleep_pid to 0.
+   # Set $termination_force_ping to 1.
+   # Signal to calling function that terminationForcePing 
+   # completed successfully.
    setSleepPid $fluidity_id 0
 
 }
@@ -4468,12 +4629,12 @@ showLinkStatus () {
        '\nClient IP Address: '$client_ip_add\
        '\nClient Username: '$client_username\
        '\nNetstat Reports: '$netstat_connection_status\
-       '\nFluidity Connection Status: '$(getFluidityConnectionStatus $fluidity_connection_ID)'\n'
+       '\nFluidity Connection Status: '$(getFluidityConnectionStatus $fluidity_connection_ID)
        # Special case 1
        # SLEEPING state detected. Display an extra information message
        # to user, showing the remaining time until the next ping.
        if [ $(getFluidityConnectionStatus $fluidity_connection_ID) == "SLEEPING" ]; then
-         echo -e 'Next Ping in '$(getPingDelay $fluidity_connection_ID)' seconds.\n'
+         echo -e 'Next Ping in '$(getPingDelay $fluidity_connection_ID)' seconds.'
        fi
    
    # Case 2: Ethernet tunnel link
@@ -4489,12 +4650,12 @@ showLinkStatus () {
        '\nNetwork Subnet Mask: '$tunneling_network_subnet_mask\
        '\nClient Username: '$client_username\
        '\nNetstat Reports: '$netstat_connection_status\
-       '\nFluidity Connection Status: '$(getFluidityConnectionStatus $fluidity_connection_ID)'\n'
+       '\nFluidity Connection Status: '$(getFluidityConnectionStatus $fluidity_connection_ID)
        # Special case 1
        # SLEEPING state detected. Display an extra information message
        # to user, showing the remaining time until the next ping.
        if [ $(getFluidityConnectionStatus $fluidity_connection_ID) == "SLEEPING" ]; then
-         echo -e 'Next Ping in '$(getPingDelay $fluidity_connection_ID)' seconds.\n'
+         echo -e 'Next Ping in '$(getPingDelay $fluidity_connection_ID)' seconds.'
        fi
        
    fi
