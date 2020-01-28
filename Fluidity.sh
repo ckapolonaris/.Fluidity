@@ -479,9 +479,11 @@ reinstallFluidity () {
 # home folder, after a reboot.
 mountFluidityServerFolder () {
    
-   # Display a zenity prompt and store the password.
-   local pass=$(zenity --entry --text "Please enter the passphrase for mounting \ 
-   Fluidity main folder (Fluidity_Server)")
+   local pass
+   
+   echo -e \
+      '\nPlease enter your Fluidity master password:'\
+      && read -p '_' pass
 
    # Mount the main Fluidity installation folder.
 
@@ -536,7 +538,7 @@ EOF
    # 1. (SOCAT)
    # 2. (ecryptfs-utils) 
    # 3. (expect) 
-   # 4. (zenity) 
+   # 4. (lsof)
    # 5. (Uncomplicated Firewall, UFW)
       # Perform basic firewall configuration i.e.
          # a. Allow outgoing traffic.
@@ -562,9 +564,9 @@ fluidityServerConfiguration () {
       if ! [ -x "$(command -v expect)" ]; then
          sudo apt-get -y install expect
       fi
-      # Verify and if not present install "ZENITY"
-      if ! [ -x "$(command -v zenity)" ]; then
-         sudo apt-get -y install zenity
+      # Verify and if not present install "LSOF"
+      if ! [ -x "$(command -v lsof)" ]; then
+         sudo apt-get -y install lsof
       fi
       # Verify and if not present install "UFW", 
       # also perform the initial Firewall configuration.
@@ -612,9 +614,11 @@ fluidityServerConfiguration () {
 # with ecryptfs-utils, by using a user defined encryption password.
 mainServerFolderCreation () {
 
-   # Interactive window:  Ask user for a Fluidity master password.
-   local encr_pass=$(zenity --entry --text "Choose your Fluidity master password\
-    (Fluidity_Server)")
+   local encr_pass
+   
+   echo -e \
+      '\nPlease choose your Fluidity master password:'\
+      && read -p '_' encr_pass
     
    # FLUIDITY -- Create the main folder
    mkdir ~/Fluidity_Server
@@ -712,11 +716,10 @@ serverFolderBackboneCreation () {
 # the following list of essential utilities.
    # 1. (SOCAT)
    # 2. (ecryptfs-utils) 
-   # 3. (expect)
-   # 4. (zenity) 
-   # 5. (haveged OR rng-tools)
-   # 6. (lsof)
-   # 7. (Uncomplicated Firewall, UFW)
+   # 3. (expect) 
+   # 4. (haveged OR rng-tools)
+   # 5. (lsof)
+   # 6. (Uncomplicated Firewall, UFW)
       # Perform basic firewall configuration i.e.
          # a. Allow outgoing traffic.
          # b. Deny incoming traffic.
@@ -739,10 +742,6 @@ fluidityClientConfiguration () {
       # Verify and if not present install "EXPECT"
       if ! [ -x "$(command -v expect)" ]; then
          sudo apt-get -y install expect
-      fi
-      # Verify and if not present install "ZENITY"
-      if ! [ -x "$(command -v zenity)" ]; then
-         sudo apt-get -y install zenity
       fi
       # Verify and if not present install "LSOF"
       if ! [ -x "$(command -v lsof)" ]; then
@@ -1236,10 +1235,9 @@ removeFluidityClient () {
       # 1. (socat)
       # 2. (ecryptfs-utils) 
       # 3. (expect)
-      # 4. (zenity) 
-      # 5. (haveged OR rng-tools)
-      # 6. (lsof)
-      # 7. (Uncomplicated Firewall, UFW)
+      # 4. (haveged OR rng-tools)
+      # 5. (lsof)
+      # 6. (Uncomplicated Firewall, UFW)
          # Perform basic firewall configuration i.e.
             # a. Allow outgoing traffic.
             # b. Deny incoming traffic.
