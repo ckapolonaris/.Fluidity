@@ -697,7 +697,8 @@ serverFolderBackboneCreation () {
 # 3.1 Public Functions
 
 
-# Arguments: NONE
+# Arguments:
+# $1: Server IP address.
 
 # Sourced Variables: NONE
 
@@ -760,12 +761,19 @@ fluidityClientConfiguration () {
          sudo ufw default allow outgoing
          # Deny all the incoming traffic
          sudo ufw default deny incoming
-         # Only allow SSH connections
-         sudo ufw allow ssh
+         # Only allow SSH connections from the Fluidity Server IP.
+         sudo ufw allow from $1 to any port 22 proto tcp
       fi
       
       # Invoke giveAnEntropyBoost
       giveAnEntropyBoost
+      
+      # Change the sshd_config. 
+      
+      # Set the maximum number of authentication retries to 1.
+      sudo echo "sed -i '34s/.*/$(echo #MaxAuthTries 1)/' /etc/ssh/sshd_config" | bash -
+      # Set the maximum number of concurrent sessions to 1.
+      sudo echo "sed -i '35s/.*/$(echo #MaxSessions 1)/' /etc/ssh/sshd_config" | bash -
       
    # Error handling case:
    # Display a no internet access message.
@@ -775,6 +783,9 @@ fluidityClientConfiguration () {
    fi
    
    mkdir ~/Fluidity_Client
+   
+   # Restart ssh to make changes take effect.
+   sudo service ssh restart
    
 }
 
@@ -810,7 +821,7 @@ fluidityClientConfiguration () {
 # Invokes functions:
 # 1. checkLocalEntropy, no args
 # 2. checkFluidityFilesystemIntegrity, no args
-# 3. fluidityRemoteClientConfiguration, with args ($3), ($5)
+# 3. fluidityRemoteClientConfiguration, with args ($3), ($5), ($2)
 # 4. remoteSeekAndEncryptDaemonInstallation ($3), ($5), ($1)
 # 4. changeRemoteHostName, with args ($2), ($3), ($5)
 
@@ -946,7 +957,7 @@ EOF
    # Invoke fluidityRemoteClientConfiguration to
    # install Fluidity's essential programs and basic firewall
    # configuration to client machine.
-   fluidityRemoteClientConfiguration $3 $5
+   fluidityRemoteClientConfiguration $3 $5 $2
    
    # Invoke remoteSeekAndEncryptDaemonInstallation to
    # install FLdaemon_SeekAndEncrypt.service.
@@ -1212,6 +1223,7 @@ removeFluidityClient () {
 # Arguments: 
 # $1: Client IP.
 # $2: Client Username.
+# $3: Server IP.
 
 # Sourced Variables: NONE
 
@@ -1271,7 +1283,7 @@ fluidityRemoteClientConfiguration () {
       '\n   sudo systemctl enable ufw'\
       '\n   sudo ufw default allow outgoing'\
       '\n   sudo ufw default deny incoming'\
-      '\n   sudo ufw allow ssh'\
+      '\n   sudo ufw allow from '$3' to any port 22 proto tcp'\
       '\nfi'\
       '\nif ! [ -x "$(command -v haveged)" ] && [ -x "$(command -v rngd)" ]; then'\
       '\n   while true; do'\
@@ -1298,9 +1310,16 @@ fluidityRemoteClientConfiguration () {
       '\n   echo "Haveged is already installed"'\
       '\nelse'\
       '\n   echo "haveged or rng-tools are already installed"'\
-      '\nfi' > \
+      '\nfi' 
+      '\nsudo echo "sed -i '34s/.*/$(echo #MaxAuthTries 1)/' /etc/ssh/sshd_config" | bash -'\
+      '\nsudo echo "sed -i '35s/.*/$(echo #MaxSessions 1)/' /etc/ssh/sshd_config" | bash -'\
+      '\nsudo service ssh restart' > \
       ~/Fluidity_Server/Generated_Scripts/genSCRIPT_fluidityRemoteClientConfiguration.sh
       chmod 700 ~/Fluidity_Server/Generated_Scripts/genSCRIPT_fluidityRemoteClientConfiguration.sh
+      
+   else
+      
+      echo "sed -i '24s/.*/$(echo sudo ufw allow from $3 to any port 22 proto tcp)/' ~/Fluidity_Server/Generated_Scripts/genSCRIPT_fluidityRemoteClientConfiguration.sh" | bash -
       
    fi
    
@@ -1692,10 +1711,9 @@ removeFluidityConnection () {
    ssh $client_username@$client_IP_address rm -r ~/Fluidity_Client/connection.$1.$2
 }
 
-# Arguments: ($1), ($2), ($3)
+# Arguments: ($1), ($2)
 # $1: Fluidity Client (SSH) Connection ID.
 # $2: Fluidity Virtual Circuit (SSL) Connection ID.
-# $3: Server Password
 
 # Sourced Variables: 
 # 1. ~/Fluidity_Server/client.$1/connection.$1.$2/link_information.txt
@@ -1740,9 +1758,9 @@ removeFluidityConnection () {
 # 	 ($client_username), ($tunneling_network_subnet_mask),
 #	 ($server_ip_add), (-t)
 # 7. reinstallSSLcerts, with args:
-#	a. ($fluidity_connection_ID), ($client_ip_add), ($3), 
+#	a. ($fluidity_connection_ID), ($client_ip_add), 
 #	 ($client_username), ($server_ip_add)
-#	b. ($1), ($2), ($client_IP_address), ($3), ($client_username),
+#	b. ($1), ($2), ($client_IP_address), ($client_username),
 #	 ($server_IP_address)
 
 # Calls the script: NONE
@@ -2665,7 +2683,7 @@ deleteDoNotEncryptToken () {
 # Sourced Variables:
 # 1. ~/Fluidity_Server/client.$SSH_ID/basic_client_info.txt
    # 1. $server_IP_address
-   # 2. $server_IP_address
+   # 2. $client_IP_address
    # 3. $client_hostname
 
 # Intershell File Variables in use: NONE
@@ -2684,6 +2702,12 @@ deleteDoNotEncryptToken () {
 # Function Description: Initiate a fluidity connection
 
 runFluidity () {
+   
+   # Import the following set of variables:
+      # 1. $server_IP_address
+      # 2. $client_IP_address
+      # 3. $client_username
+   source ~/Fluidity_Server/client.$2/basic_client_info.txt
    
    # Use netstat and pipe the output to grep. According to
    # $server_listening_port grep the line referring to that specific 
@@ -2716,9 +2740,28 @@ runFluidity () {
          echo "IP tunnel Fluidity connection $2.$3 is ACTIVE."
          return
       fi
+   
+   # Precautionary action 1: Fluidity abnormally shut down while a SSL
+   # substitution was in progress. Delete the previous state information
+   # and perform a SSL substitution.
+   elif [[ $(getFluidityConnectionStatus) == SSL_TERMINATING ]]\
+   || [[ $(getFluidityConnectionStatus) == SSL_TERMINATION_PENDING ]]; then
+   
+      # Delete the runTimeVars folder.
+      if [ -d ~/Fluidity_Server/client.$2/connection.$2.$3/runTimeVars ]; then
+         destroyRunTimeVars $2.$3
+      fi
+         
+      # Delete the link state information file (link_information.txt).
+      if [ -f ~/Fluidity_Server/client.$2/connection.$2.$3/link_information.txt ]; then
+         deleteSOCATlinkStateInformation $2.$3
+      fi
+   
+      # Invoke reinstallSSLcerts
+      reinstallSSLcerts $1.$2 $client_IP_address $client_username $server_IP_address
       
-   # Precautionaty action 1: Delete any possible remaining state 
-   # information from an adnormal shutdown.
+   # Precautionaty action 2: Delete remaining state information from an
+   # adnormal shutdown.
    else
    
       # Conditionally invoke destroyRunTimeVars:
@@ -2744,7 +2787,6 @@ runFluidity () {
       return
    fi
    
-
       
    # Safety check 4: Check whether the server IP address or server Serial 
    # device is already in use
@@ -2772,7 +2814,7 @@ runFluidity () {
       return
    fi
    
-   # Precautionary action 2: Check whether client ssh idenity is loaded
+   # Precautionary action 3: Check whether client ssh idenity is loaded
    # to SSH keyring.
    if ! ssh-add -l | grep client.$2; then
    
@@ -2786,12 +2828,6 @@ runFluidity () {
       echo "Fluidity client identity $2 is already loaded in keyring."
       
    fi
-   
-   # Import the following set of variables:
-      # 1. $server_IP_address
-      # 2. $client_IP_address
-      # 3. $client_username
-   source ~/Fluidity_Server/client.$2/basic_client_info.txt
    
    # Invoke openPort
    # Allow traffic through the designated port.
