@@ -3,7 +3,7 @@
 #
 # Script Name: Fluidity.sh
 #
-# Authors: Charalampos Kapolonaris & Vassilios Koutlas
+# Authors: Charalampos Kapolonaris & Vasilios Koutlas
 # Date : 25.01.2020
 #
 # Description: Fluidity is a SOCAT SSL connection manager. It's based on
@@ -105,6 +105,7 @@
 #		removeFluidityConnection
 #		renewSSLcerts
 # 	5.2 Private Functions
+#		internalSSLrenew
 #		installSSLcertificates
 #		reinstallSSLcerts
 #		clientFolderCreation
@@ -126,10 +127,10 @@
 #		6.2.3 Link Setup
 #			establishSOCATlink
 #			6.2.3.1  Link State Information Administration
-#				6.2.3.1.1 Static Information
+#				6.2.3.1.1 Managing Static Information
 #					storeSOCATlinkStateInformation
 #					deleteSOCATlinkStateInformation
-#				6.2.3.1.2 Dynamic Information
+#				6.2.3.1.2 Managing Dynamic Information
 #					initilizeRunTimeVars
 #					destroyRunTimeVars
 #			6.2.3.2 Server Setup
@@ -147,6 +148,10 @@
 #					isItEncryptedOnClient
 #					decryptClient
 #					encryptClient
+#		6.2.4 SSL Certificates Verification Functions
+#			checkIfTokenSlotFolderIsEmpty
+#			verifyThatSSLCertificatesExist
+#			doAClientServerMD5EquivalencyCheck
 # 	6.3 Engine Auxillary Functions
 #		6.3.1 Public Functions
 #			forcePing
@@ -515,6 +520,7 @@ EOF
 }
 
 
+# 2. Server Creation - Configuration Functions
 # 2.2 Private Functions
 
 
@@ -768,12 +774,12 @@ fluidityClientConfiguration () {
       # Invoke giveAnEntropyBoost
       giveAnEntropyBoost
       
-      # Change the sshd_config. 
+      # Modify sshd_config to implement the following policies. 
       
       # Set the maximum number of authentication retries to 1.
-      sudo echo "sed -i '34s/.*/$(echo #MaxAuthTries 1)/' /etc/ssh/sshd_config" | bash -
-      # Set the maximum number of concurrent sessions to 1.
-      sudo echo "sed -i '35s/.*/$(echo #MaxSessions 1)/' /etc/ssh/sshd_config" | bash -
+      echo "sudo sed -i '34s/.*/$(echo \#MaxAuthTries 1)/' /etc/ssh/sshd_config" | bash -
+      # Set the maximum amount of concurrent sessions to 1.
+      echo "sudo sed -i '35s/.*/$(echo \#MaxSessions 2)/' /etc/ssh/sshd_config" | bash -
       
    # Error handling case:
    # Display a no internet access message.
@@ -798,7 +804,7 @@ fluidityClientConfiguration () {
 # $1: SSH Client ID.
 # $2: Server IP address.
 # $3: Client IP address.
-# $4: Server Password
+# $4: Client Password
 # $5: Client username (for raspbian OS the default is pi@)
 
 # Sourced Variables: NONE
@@ -822,7 +828,7 @@ fluidityClientConfiguration () {
 # 1. checkLocalEntropy, no args
 # 2. checkFluidityFilesystemIntegrity, no args
 # 3. fluidityRemoteClientConfiguration, with args ($3), ($5), ($2)
-# 4. remoteSeekAndEncryptDaemonInstallation ($3), ($5), ($1)
+# 4. remoteSeekAndEncryptDaemonInstallation ($3), ($5), ($1), ($2)
 # 4. changeRemoteHostName, with args ($2), ($3), ($5)
 
 # Calls the script: NONE
@@ -932,7 +938,8 @@ expect << EOF
 EOF
 
    # Transmit the SSH credentials to the remote machine.
-   # sshpass utility will be used to provide the log in password.
+   # sshpass utility will be used to provide the log in password by 
+   # using the client password (argument $4).
    sshpass -p $4 \
    ssh-copy-id -i ~/.ssh/client.$1 $5@$3
     
@@ -961,7 +968,7 @@ EOF
    
    # Invoke remoteSeekAndEncryptDaemonInstallation to
    # install FLdaemon_SeekAndEncrypt.service.
-   remoteSeekAndEncryptDaemonInstallation $3 $5 $1
+   remoteSeekAndEncryptDaemonInstallation $3 $5 $1 $2
    
 }
 
@@ -1217,6 +1224,7 @@ removeFluidityClient () {
 }
 
 
+# 4. Client Management Functions
 # 4.2 Private Functions
 
 
@@ -1308,11 +1316,11 @@ fluidityRemoteClientConfiguration () {
       '\n   done'\
       '\nelif [ -x "$(command -v haveged)" ]; then'\
       '\n   echo "Haveged is already installed"'\
-      '\nelse'\
-      '\n   echo "haveged or rng-tools are already installed"'\
-      '\nfi' 
-      '\nsudo echo "sed -i '34s/.*/$(echo #MaxAuthTries 1)/' /etc/ssh/sshd_config" | bash -'\
-      '\nsudo echo "sed -i '35s/.*/$(echo #MaxSessions 1)/' /etc/ssh/sshd_config" | bash -'\
+      '\nelif [ -x "$(command -v rngd)" ]; then'\
+      '\n   echo "rng-tools are already installed"'\
+      '\nfi'\
+      '\necho "sudo sed -i '"'"'34s/.*/$(echo \#MaxAuthTries 1)/'"'"' /etc/ssh/sshd_config" | bash -'\
+      '\necho "sudo sed -i '"'"'35s/.*/$(echo \#MaxSessions 2)/'"'"' /etc/ssh/sshd_config" | bash -'\
       '\nsudo service ssh restart' > \
       ~/Fluidity_Server/Generated_Scripts/genSCRIPT_fluidityRemoteClientConfiguration.sh
       chmod 700 ~/Fluidity_Server/Generated_Scripts/genSCRIPT_fluidityRemoteClientConfiguration.sh
@@ -1331,7 +1339,8 @@ fluidityRemoteClientConfiguration () {
 # Arguments:
 # $1: Client IP.
 # $2: Client Username.
-# $3: SSH Client ID
+# $3: SSH Client ID.
+# $4: Server IP.
 
 # Sourced Variables: NONE
 
@@ -1440,45 +1449,115 @@ remoteSeekAndEncryptDaemonInstallation () {
    if [[ ! -e ~/Fluidity_Server/Generated_Scripts/FLdaemon_SeekAndEncrypt.sh ]]; then
    
       # Script description:
-      # 1. Generate a client specific script, named: 
-      # FLdaemon_SeekAndEncrypt.sh.
+      #
+      # 1. Generate the client specific script: FLdaemon_SeekAndEncrypt.sh.
+      #
       # 2. Embed client specific information into specific sections of the script 
-      # by using the following variables:
-      #  Variables expressing CLIENT RELATED INFORMATION
-      #    a. $2: Client Username
-      #    b. $3: SSH Client ID
-      #  Variables related to the DIGITAL PADLOCK (encryption immunity token)
-      #    c. $filename: Token's filename 
-      #    d. $client_hashed_key: Token's hashed key
-      # 3. Loop through the ~/Fluidity_Client/connection.[SSH_ID].x
-      # Fluidity connection folders (where x is [SSL_ID] = [1,2,...]) 
-      # and see whether an active SOCAT connection exists. 
-      #    a. If there is an active connection, leave the folder as it is. 
-      #    b. If the connection is inactive, secure the folder by 
-      #     encrypting it. 
-      #    c. If the encryption immunity token is detected, within its 
-      #     specific container folder: 
-      #     (~/Fluidity_Client/connection.[SSH_ID.SSL_ID]/tokenSlot),
-      #     keep the connection folder data decrypted.
+      #    by using the following variables:
+      #
+      #   Variables expressing SERVER RELATED INFORMATION
+      #     a. $4: Server IP
+      #
+      #   Variables expressing CLIENT RELATED INFORMATION
+      #     b. $2: Client Username
+      #     c. $3: SSH Client ID
+      #
+      #   Variables pertinent to the DIGITAL PADLOCK (encryption immunity token)
+      #     d. $filename: Token's filename 
+      #     e. $client_hashed_key: Token's hashed key
+      #
+      #
+      # 3. Scan every client connection folder (expressed by *) in
+      #    ~/Fluidity_Client/connection.[SSH_ID].* and see whether an 
+      #    active SOCAT connection exists. 
+      #
+      #   a. For an active connection, leave the folder as it is. 
+      #
+      #   b. For an inactive connection, secure the folder by 
+      #      encrypting it. 
+      #
+      #   c. If the encryption immunity token is detected in tokenSlot 
+      #      folder i.e. (~/Fluidity_Client/connection.[SSH_ID.SSL_ID]/tokenSlot), 
+      #      and the server responds to client pinging requests, keep the
+      #      client connection folder decrypted.
       
       sudo echo -e \
         '#!/bin/bash'\
       '\nwhile true; do'\
-      '\n   folder_counter=1'\
-      '\n      while [[ -e /home/'$2'/Fluidity_Client/connection.'$3'.$folder_counter ]]; do'\
-      '\n         if [[ ! $(lsof | grep "connection.'$3'.$folder_counter/clientcon.'$3'.$folder_counter.pem") ]] && \\\n'\
-      '         [ -f /home/'$2'/Fluidity_Client/connection.'$3'.$folder_counter/tokenSlot/'$filename' ]; then'\
-      '\n            source /home/'$2'/Fluidity_Client/connection.'$3'.$folder_counter/tokenSlot/'$filename\
-      '\n            result=$(echo '$client_hashed_key' |  openssl enc -aes-128-cbc -a -d -salt -pass pass:$seal_2)'\
-      '\n            if [ "$seal_1" != "$result" ]; then'\
-      '\n               sudo umount /home/'$2'/Fluidity_Client/connection.'$3'.$folder_counter'\
+      '\n'\
+      '\n      # For every file contained in the Fluidity_Client folder:'\
+      '\n      for file in /home/'$2'/Fluidity_Client/connection.'$3'.* ; do'\
+      '\n'\
+      '\n         # And only for files which are folders (i.e. for every folder)'\
+      '\n         # do the following:'\
+      '\n         if [ -d "$file" ]; then'\
+      '\n'\
+      '\n            # Isolate the connection number from the connection folders '\
+      '\n            # by using two successive cut commands.'\
+      '\n            # The first cut isolates the fifth element using the / delimeter character.'\
+      '\n            # The second cut takes the input from the previous cut and isolates'\
+      '\n            # the third element using the . delimeter character. Thus the connection_number'\
+      '\n            # is derived.'\
+      '\n            connection_number=$(echo $file | cut -d'/' -f5 | cut -d'.' -f3)'\
+      '\n'\
+      '\n            # Case 1: Connection to server exists. Maintain the encryption immunity token.'\
+      '\n            # We specify three conditions which must be TRUE. '\
+      '\n               # 1. The absence of a SOCAT process for a specific Fluidity connection.'\
+      '\n               # 2. do_not_encrypt token not being present in tokenSlot.'\
+      '\n               # 3. A successful server pinging response by performing two pinging efforts.'\
+      '\n            # If the above conditions apply, then do the following:'\
+      '\n            if [[ ! $(lsof | grep "connection.'$3'.$connection_number/clientcon.'$3'.$connection_number.pem") ]] && \\\n'\
+      '               [ -f /home/'$2'/Fluidity_Client/connection.'$3'.$connection_number/tokenSlot/'$filename' ] && \\\n'\
+      '                ping -c 2 '$4'; then'\
+      '\n'\
+      '\n               # Source the variables $seal_1 and $seal_2 contained in the do_not_encrypt token.'\
+      '\n               source /home/'$2'/Fluidity_Client/connection.'$3'.$connection_number/tokenSlot/'$filename\
+      '\n               # Derive $seal_1 from the hashed key embedded in seek_and_encrypt by using $seal_2.'\
+      '\n               result=$(echo '$client_hashed_key' |  openssl enc -aes-128-cbc -a -d -salt -pass pass:$seal_2)'\
+      '\n'\
+      '\n               # In case $seal_1 contained in the do_not_encrypt token doesn'"'"'t much the derived result'\
+      '\n               if [ "$seal_1" != "$result" ]; then'\
+      '\n                  # do_not_encrypt token is bogus and shouldn'"'"'t offer encryption immunity'\
+      '\n                  # to the specific connection folder. umount the specified connection folder.'\
+      '\n                  sudo umount /home/'$2'/Fluidity_Client/connection.'$3'.$connection_number'\
+      '\n               fi'\
+      '\n'\
+      '\n            # Case 2: Connection to server is lost. Protect the encryption immunity token by deleting'\
+      '\n            # and substituting it with the file "resetSSL.txt".'\
+      '\n            # We specify two conditions which must be TRUE '\
+      '\n               # 1. The absence of a SOCAT process for a specific Fluidity connection.'\
+      '\n               # 2. do_not_encrypt token not being present in tokenSlot.'\
+      '\n            # If the above conditions apply, then do the following:'\
+      '\n            elif [[ ! $(lsof | grep "connection.'$3'.$connection_number/clientcon.'$3'.$connection_number.pem") ]] && \\\n'\
+      '               [ -f /home/'$2'/Fluidity_Client/connection.'$3'.$connection_number/tokenSlot/'$filename' ]; then'\
+      '\n'\
+      '\n               # Create a file containing the string "resetSSL" and named "resetSSL.txt"'\
+      '\n               echo "resetSSL" > home/'$2'/Fluidity_Client/connection.'$3'.$connection_number/tokenSlot/resetSSL.txt'\
+      '\n               # Delete the do_not_encrypt token from the tokenSlot folder.'\
+      '\n               rm home/'$2'/Fluidity_Client/connection.'$3'.$connection_number/tokenSlot/'$filename\
+      '\n               # umount the specified connection folder.'\
+      '\n               sudo umount /home/'$2'/Fluidity_Client/connection.'$3'.$connection_number'\
+      '\n'\
+      '\n            # Case 3: A connection folder corresponding to a currently inactive Fluidity connection.'\
+      '\n            # We specify one condition which should be TRUE '\
+      '\n               # 1. The absence of a SOCAT process for a specific Fluidity connection.'\
+      '\n            # If the above condition applies, then do the following:'\
+      '\n            elif [[ ! $(lsof | grep "connection.'$3'.$connection_number/clientcon.'$3'.$connection_number.pem") ]]; then'\
+      '\n'\
+      '\n               # umount the specified connection folder.'\
+      '\n               sudo umount /home/'$2'/Fluidity_Client/connection.'$3'.$connection_number'\
+      '\n'\
       '\n            fi'\
-      '\n         elif [[ ! $(lsof | grep "connection.'$3'.$folder_counter/clientcon.'$3'.$folder_counter.pem") ]]; then'\
-      '\n            sudo umount /home/'$2'/Fluidity_Client/connection.'$3'.$folder_counter'\
+      '\n'\
       '\n         fi'\
-      '\n         let folder_counter=$(expr $folder_counter + 1)'\
+      '\n'\
       '\n      done'\
-      '\n   sleep $(shuf -i 0-60 -n1)'\
+      '\n'\
+      '\n   # invoke a sleep process to delay the next execution circle.'\
+      '\n   # Sleeping time is set between a random interval between '\
+      '\n   # of 5 to 60 seconds.'\
+      '\n   sleep $(shuf -i 5-60 -n1)'\
+      '\n'\
       '\ndone' \
          > ~/Fluidity_Server/Generated_Scripts/FLdaemon_SeekAndEncrypt.sh
       chmod 700 ~/Fluidity_Server/Generated_Scripts/FLdaemon_SeekAndEncrypt.sh
@@ -1493,21 +1572,80 @@ remoteSeekAndEncryptDaemonInstallation () {
       sudo echo -e \
         '#!/bin/bash'\
       '\nwhile true; do'\
-      '\n   folder_counter=1'\
-      '\n      while [[ -e /home/'$2'/Fluidity_Client/connection.'$3'.$folder_counter ]]; do'\
-      '\n         if [[ ! $(lsof | grep "connection.'$3'.$folder_counter/clientcon.'$3'.$folder_counter.pem") ]] && \\\n'\
-      '         [ -f /home/'$2'/Fluidity_Client/connection.'$3'.$folder_counter/tokenSlot/'$filename' ]; then'\
-      '\n            source /home/'$2'/Fluidity_Client/connection.'$3'.$folder_counter/tokenSlot/'$filename\
-      '\n            result=$(echo '$client_hashed_key' |  openssl enc -aes-128-cbc -a -d -salt -pass pass:$seal_2)'\
-      '\n            if [ "$seal_1" != "$result" ]; then'\
-      '\n               sudo umount /home/'$2'/Fluidity_Client/connection.'$3'.$folder_counter'\
+      '\n'\
+      '\n      # For every file contained in the Fluidity_Client folder:'\
+      '\n      for file in /home/'$2'/Fluidity_Client/connection.'$3'.* ; do'\
+      '\n'\
+      '\n         # And only for files which are folders (i.e. for every folder)'\
+      '\n         # do the following:'\
+      '\n         if [ -d "$file" ]; then'\
+      '\n'\
+      '\n            # Isolate the connection number from the connection folders '\
+      '\n            # by using two successive cut commands.'\
+      '\n            # The first cut isolates the fifth element using the / delimeter character.'\
+      '\n            # The second cut takes the input from the previous cut and isolates'\
+      '\n            # the third element using the . delimeter character. Thus the connection_number'\
+      '\n            # is derived.'\
+      '\n            connection_number=$(echo $file | cut -d'/' -f5 | cut -d'.' -f3)'\
+      '\n'\
+      '\n            # Case 1: Connection to server exists. Maintain the encryption immunity token.'\
+      '\n            # We specify three conditions which must be TRUE. '\
+      '\n               # 1. The absence of a SOCAT process for a specific Fluidity connection.'\
+      '\n               # 2. do_not_encrypt token not being present in tokenSlot.'\
+      '\n               # 3. A successful server pinging response by performing two pinging efforts.'\
+      '\n            # If the above conditions apply, then do the following:'\
+      '\n            if [[ ! $(lsof | grep "connection.'$3'.$connection_number/clientcon.'$3'.$connection_number.pem") ]] && \\\n'\
+      '               [ -f /home/'$2'/Fluidity_Client/connection.'$3'.$connection_number/tokenSlot/'$filename' ] && \\\n'\
+      '                ping -c 2 '$4'; then'\
+      '\n'\
+      '\n               # Source the variables $seal_1 and $seal_2 contained in the do_not_encrypt token.'\
+      '\n               source /home/'$2'/Fluidity_Client/connection.'$3'.$connection_number/tokenSlot/'$filename\
+      '\n               # Derive $seal_1 from the hashed key embedded in seek_and_encrypt by using $seal_2.'\
+      '\n               result=$(echo '$client_hashed_key' |  openssl enc -aes-128-cbc -a -d -salt -pass pass:$seal_2)'\
+      '\n'\
+      '\n               # In case $seal_1 contained in the do_not_encrypt token doesn'"'"'t much the derived result'\
+      '\n               if [ "$seal_1" != "$result" ]; then'\
+      '\n                  # do_not_encrypt token is bogus and shouldn'"'"'t offer encryption immunity'\
+      '\n                  # to the specific connection folder. umount the specified connection folder.'\
+      '\n                  sudo umount /home/'$2'/Fluidity_Client/connection.'$3'.$connection_number'\
+      '\n               fi'\
+      '\n'\
+      '\n            # Case 2: Connection to server is lost. Protect the encryption immunity token by deleting'\
+      '\n            # and substituting it with the file "resetSSL.txt".'\
+      '\n            # We specify two conditions which must be TRUE '\
+      '\n               # 1. The absence of a SOCAT process for a specific Fluidity connection.'\
+      '\n               # 2. do_not_encrypt token not being present in tokenSlot.'\
+      '\n            # If the above conditions apply, then do the following:'\
+      '\n            elif [[ ! $(lsof | grep "connection.'$3'.$connection_number/clientcon.'$3'.$connection_number.pem") ]] && \\\n'\
+      '               [ -f /home/'$2'/Fluidity_Client/connection.'$3'.$connection_number/tokenSlot/'$filename' ]; then'\
+      '\n'\
+      '\n               # Create a file containing the string "resetSSL" and named "resetSSL.txt"'\
+      '\n               echo "resetSSL" > home/'$2'/Fluidity_Client/connection.'$3'.$connection_number/tokenSlot/resetSSL.txt'\
+      '\n               # Delete the do_not_encrypt token from the tokenSlot folder.'\
+      '\n               rm home/'$2'/Fluidity_Client/connection.'$3'.$connection_number/tokenSlot/'$filename\
+      '\n               # umount the specified connection folder.'\
+      '\n               sudo umount /home/'$2'/Fluidity_Client/connection.'$3'.$connection_number'\
+      '\n'\
+      '\n            # Case 3: A connection folder corresponding to a currently inactive Fluidity connection.'\
+      '\n            # We specify one condition which should be TRUE '\
+      '\n               # 1. The absence of a SOCAT process for a specific Fluidity connection.'\
+      '\n            # If the above condition applies, then do the following:'\
+      '\n            elif [[ ! $(lsof | grep "connection.'$3'.$connection_number/clientcon.'$3'.$connection_number.pem") ]]; then'\
+      '\n'\
+      '\n               # umount the specified connection folder.'\
+      '\n               sudo umount /home/'$2'/Fluidity_Client/connection.'$3'.$connection_number'\
+      '\n'\
       '\n            fi'\
-      '\n         elif [[ ! $(lsof | grep "connection.'$3'.$folder_counter/clientcon.'$3'.$folder_counter.pem") ]]; then'\
-      '\n            sudo umount /home/'$2'/Fluidity_Client/connection.'$3'.$folder_counter'\
+      '\n'\
       '\n         fi'\
-      '\n         let folder_counter=$(expr $folder_counter + 1)'\
+      '\n'\
       '\n      done'\
-      '\n   sleep $(shuf -i 0-60 -n1)'\
+      '\n'\
+      '\n   # invoke a sleep process to delay the next execution circle.'\
+      '\n   # Sleeping time is set between a random interval between '\
+      '\n   # of 5 to 60 seconds.'\
+      '\n   sleep $(shuf -i 5-60 -n1)'\
+      '\n'\
       '\ndone' \
          > ~/Fluidity_Server/Generated_Scripts/FLdaemon_SeekAndEncrypt.sh
       chmod 700 ~/Fluidity_Server/Generated_Scripts/FLdaemon_SeekAndEncrypt.sh
@@ -1739,29 +1877,12 @@ removeFluidityConnection () {
 # Generates: Nothing
  
 # Invokes Functions: 
-# 1. copyDoNotEncryptToken, with args:
-#	a. ($fluidity_connection_ID), ($client_ip_add), ($client_username)
-#	b. ($1), ($2), ($client_IP_address), ($client_username)
-# 2. deleteDoNotEncryptToken, with args:
-#	a. ($fluidity_connection_ID), ($client_ip_add), ($client_username)
-#	b. ($1), ($2) ($client_IP_address), ($client_username)
-# 3. recallSSHidentity, with args ($1)
-# 4. decryptClient, with args ($1), ($2), ($client_IP_address),
-#  ($client_username)
-# 5. stopFluidityToRenewSSLcerts, with args ($fluidity_connection_ID)
-# 6. establishSOCATlink, with args:
-#	a. ($fluidity_connection_ID), ($server_serial_int), 
-#	 ($server_listening_port), ($client_serial_int), ($client_ip_add), 
-#	 ($client_username), ($link_serial_speed), ($server_ip_add), (-s)
-#	b. ($fluidity_connection_ID), ($server_tunnel_ip), 
-#	 ($server_listening_port), ($client_tunnel_ip), ($client_ip_add),
-# 	 ($client_username), ($tunneling_network_subnet_mask),
-#	 ($server_ip_add), (-t)
-# 7. reinstallSSLcerts, with args:
-#	a. ($fluidity_connection_ID), ($client_ip_add), 
-#	 ($client_username), ($server_ip_add)
-#	b. ($1), ($2), ($client_IP_address), ($client_username),
-#	 ($server_IP_address)
+
+# 1. recallSSHidentity, with args: ($1)
+# 2. checkForConnectionFolderAndDecrypt, with args: ($1) ($2) 
+#  $(client_IP_address) ($client_username)
+# 3. activeLinkInternalSSLrenew, with args: ($1) ($2)
+# 4. inactiveLinkInternalSSLrenew, with args: ($1) ($2)
 
 # Calls the script: NONE
 
@@ -1772,7 +1893,7 @@ removeFluidityConnection () {
 # 2nd scenario: Renew the SSL certificates on an inactive link.
 # 3rd scenatio: Wrong input.
 
-renewSSLcerts () {
+renewSSL () {
    
    # Case 1: Act upon an active link.
 
@@ -1845,48 +1966,8 @@ renewSSLcerts () {
          return
       fi
    
-      # invoke copyDoNotEncryptToken
-      # Block FLdaemon_SeekAndEncrypt.service from encrypting the
-      # connection.[SSL_ID.SSH.ID] folder.
-      copyDoNotEncryptToken $fluidity_connection_ID $client_ip_add $client_username
-   
-      # invoke stopFluidityToRenewSSLcerts
-      # Perform a special stopFluidity that paves the way to SSL 
-      # substitution.
-      stopFluidityToRenewSSLcerts $fluidity_connection_ID
-      
-      # Information message to user.
-      echo "SSL certificates renewal under way."
-   
-      # invoke reinstallSSLcerts
-      # Reinstall the SSL certificates for target connection.
-      reinstallSSLcerts $fluidity_connection_ID $client_ip_add $client_username $server_ip_add
-   
-      # Certificate reinstallation is done. 
-      # Re-establish the SOCAT link. Based on link_information.txt
-      # start the proper Fluidity flavour choice.
-      
-      # For a Serial link
-      if [[ "$fluidity_flavour_choice" == -s ]]; then
-   
-         # invoke establishSOCATlink
-         establishSOCATlink $fluidity_connection_ID $server_serial_int \
-         $server_listening_port $client_serial_int $client_ip_add $client_username \
-         $link_serial_speed $server_ip_add -s
-   
-      # For an Ethernet Tunnnel link
-      elif [[ "$fluidity_flavour_choice" == -t ]]; then
-   
-         # invoke establishSOCATlink
-         establishSOCATlink $fluidity_connection_ID $server_tunnel_ip \
-         $server_listening_port $client_tunnel_ip $client_ip_add $client_username \
-         $tunneling_network_subnet_mask $server_ip_add -t
-      
-      fi
-   
-      # invoke deleteDoNotEncryptToken
-      # Unblock FLdaemon_SeekAndEncrypt.service
-      deleteDoNotEncryptToken $fluidity_connection_ID $client_ip_add $client_username
+      # Invoke activeLinkInternalSSLrenew
+      activeLinkInternalSSLrenew $1.$2
    
       # Information message to user.
       echo "Client - Server SSL certificates for connection $1.$2 renewed successfully."
@@ -1915,7 +1996,7 @@ renewSSLcerts () {
       # Safety check 2: Recall the SSH ID in case it isn't loaded.
       if ! ssh-add -l | grep client.$1; then
       
-         #invoke recallSSHidentity
+         #Invoke recallSSHidentity
          recallSSHidentity $1
          
       fi
@@ -1925,44 +2006,10 @@ renewSSLcerts () {
       echo "SSL Substitution will proceed for INACTIVE link $1.$2."
       
       # Safety check 3: Check whether target connection folder is encrypted.
+      checkForConnectionFolderAndDecrypt $1.$2 $client_IP_address $client_username
       
-      # Case 1: Client folder found encrypted.
-      if [ -z "$(isItEncryptedOnClient $1.$2 $client_IP_address $client_username)" ] ; then
-      
-         # Information message to user.
-         echo "connection.$1.$2 folder on client machine is encrypted. Executing ecryptFS."
-         
-         # invoke decryptClient
-         # Decrypt the client folder.
-         decryptClient $1.$2 $client_IP_address $client_username
-         
-         # Information message to user.
-         echo "Client decrypted. Transmitting the do_not_encrypt token."
-        
-         # invoke copyDoNotEncryptToken
-         # Transmit the immunity encryption token to client.
-         copyDoNotEncryptToken $1.$2 $client_IP_address $client_username
-      
-      # Case 2: Client folder found decrypted.
-      else
-         
-         # Information message to user.
-         echo "connection.$1.$2 folder on client machine is decrypted. Transmitting the do_not_encrypt token"
-         
-         # invoke copyDoNotEncryptToken
-         # Transmit the immunity encryption token to client.
-         copyDoNotEncryptToken $1.$2 $client_IP_address $client_username
-         
-      fi
-      
-      # invoke reinstallSSLcerts
-      # Reinstall the SSL certificates for target connection 
-      # connection.[SSH_ID.SSL_ID]
-      reinstallSSLcerts $1.$2 $client_IP_address $client_username $server_IP_address
-      
-      # invoke deleteDoNotEncryptToken
-      # Remove the encryption immunity token from target client.
-      deleteDoNotEncryptToken $1.$2 $client_IP_address $client_username
+      # Invoke doAnInternalSSLrenewInactiveLink
+      inactiveLinkInternalSSLrenew $1.$2
    
       # Information message to user.
       echo "Client - Server SSL certificates for connection $1.$2 renewed successfully."
@@ -1978,8 +2025,186 @@ renewSSLcerts () {
 }
 
 
+# 5. Connection Management Functions
 # 5.2 Private Functions
 
+
+# Arguments: ($1), ($2)
+# $1: Fluidity Connection ID [SSH_ID.SSL_ID] 
+
+# Sourced Variables:
+# 1. ~/Fluidity_Server/client.$1/basic_client_info.txt
+   # 1. $server_IP_address
+   # 2. $client_IP_address
+   # 3. $client_username
+
+# Intershell File Variables in use: NONE
+
+# Global Variables in use: NONE
+
+# Generates: Nothing
+
+# Invokes Functions:
+# 1. copyDoNotEncryptToken, with args: ($1), ($client_IP_address)
+#  ($client_username)
+# 2. reinstallSSLcerts, with args: ($1), ($client_IP_address) 
+#  ($client_username) ($server_IP_address)
+# 3. deleteDoNotEncryptToken, with args: ($1), ($client_IP_address) 
+#  ($client_username)
+
+# Calls the script: NONE
+
+# Function Description: Do an SSL renew on an inactive Fluidity 
+# connection.
+
+inactiveLinkInternalSSLrenew () {
+   
+   local SSH_ID=${1%.*}
+   
+   # Source the variables:
+      # 1. $server_IP_address
+      # 2. $client_IP_address
+      # 3. $client_username
+   source ~/Fluidity_Server/client.$SSH_ID/basic_client_info.txt
+   
+   # invoke copyDoNotEncryptToken
+   # Transmit the immunity encryption token to client.
+   copyDoNotEncryptToken $1 $client_IP_address $client_username
+         
+   # invoke reinstallSSLcerts
+   # Reinstall the SSL certificates for target connection 
+   # connection.[SSH_ID.SSL_ID]
+   reinstallSSLcerts $1 $client_IP_address $client_username $server_IP_address
+      
+   # invoke deleteDoNotEncryptToken
+   # Remove the encryption immunity token from target client.
+   deleteDoNotEncryptToken $1 $client_IP_address $client_username
+   
+}
+
+# Arguments: ($1)
+# $1: Fluidity Connection ID [SSH_ID.SSL_ID] 
+
+# Sourced Variables:
+# 1. ~/Fluidity_Server/client.$1/connection.$1.$2/link_information.txt
+   # 1. $fluidity_connection_ID
+   # 2. $server_serial_int OR $server_tunnel_ip
+   # 3. $server_listening_port
+   # 4. $client_serial_int OR $client_tunnel_ip
+   # 5. $client_ip_add
+   # 6. $client_username
+   # 7. $link_serial_speed OR $tunneling_network_subnet_mask
+   # 8. $server_ip_add
+   # 9. $fluidity_flavour_choice
+
+# Intershell File Variables in use: NONE
+
+# Global Variables in use: NONE
+
+# Generates: Nothing
+
+# Invokes Functions:
+# 1. copyDoNotEncryptToken, with args:
+#  ($fluidity_connection_ID), ($client_ip_add), ($client_username)
+# 2. deleteDoNotEncryptToken, with args:
+#  ($fluidity_connection_ID), ($client_ip_add), ($client_username)
+# 3. stopFluidityToRenewSSLcerts, with args ($fluidity_connection_ID)
+# 4. establishSOCATlink, with args:
+#	a. ($fluidity_connection_ID), ($server_serial_int), 
+#	 ($server_listening_port), ($client_serial_int), ($client_ip_add), 
+#	  ($client_username), ($link_serial_speed), ($server_ip_add), (-s)
+#	b. ($fluidity_connection_ID), ($server_tunnel_ip), 
+#	 ($server_listening_port), ($client_tunnel_ip), ($client_ip_add),
+# 	  ($client_username), ($tunneling_network_subnet_mask),
+#	   ($server_ip_add), (-t)
+# 5. reinstallSSLcerts, with args:
+# ($fluidity_connection_ID), ($client_ip_add), ($client_username), 
+#  ($server_ip_add)
+
+# Calls the script: NONE
+
+# Function Description: Do an SSL renew on an active Fluidity 
+# connection.
+
+activeLinkInternalSSLrenew () {
+   
+      # Source the variables:
+   
+      # Case 1: $fluidity_flavour_choice equals to -s (i.e. serial link)
+      
+         # 1. $fluidity_connection_ID
+         # 2. $server_serial_int
+         # 3. $server_listening_port
+         # 4. $client_serial_int
+         # 5. $client_ip_add
+         # 6. $client_username
+         # 7. $link_serial_speed
+         # 8. $server_ip_add
+         # 9. $fluidity_flavour_choice
+         
+      # Case 2: $fluidity_flavour_choice equals to -t (i.e. tunnel link)
+      
+         # 1. $fluidity_connection_ID
+         # 2. $server_tunnel_ip
+         # 3. $server_listening_port
+         # 4. $client_tunnel_ip
+         # 5. $client_ip_add
+         # 6. $client_username
+         # 7. $tunneling_network_subnet_mask
+         # 8. $server_ip_add
+         # 9. $fluidity_flavour_choice
+      source ~/Fluidity_Server/client.$1/connection.$1.$2/link_information.txt
+   
+      # invoke copyDoNotEncryptToken
+      # Block FLdaemon_SeekAndEncrypt.service from encrypting the
+      # connection.[SSL_ID.SSH.ID] folder.
+      copyDoNotEncryptToken $fluidity_connection_ID $client_ip_add $client_username
+   
+      # invoke stopFluidityToRenewSSLcerts
+      # Perform a special stopFluidity that paves the way to SSL 
+      # substitution.
+      stopFluidityToRenewSSLcerts $fluidity_connection_ID
+      
+      # Information message to user.
+      echo "Fluidity engine for connection $fluidity_connection_ID successfully stopped."
+   
+      # invoke reinstallSSLcerts
+      # Reinstall the SSL certificates for target connection.
+      reinstallSSLcerts $fluidity_connection_ID $client_ip_add $client_username $server_ip_add
+      
+      # Information message to user.
+      echo "SSL substitution for connection $fluidity_connection_ID successfully completed."
+   
+      # Certificate reinstallation is done. 
+      # Re-establish the SOCAT link. Based on link_information.txt
+      # start Fluidity with the proper Fluidity flavour choice.
+      
+      # For a Serial link
+      if [[ "$fluidity_flavour_choice" == -s ]]; then
+   
+         # invoke establishSOCATlink
+         establishSOCATlink $fluidity_connection_ID $server_serial_int \
+         $server_listening_port $client_serial_int $client_ip_add $client_username \
+         $link_serial_speed $server_ip_add -s
+   
+      # For an Ethernet Tunnnel link
+      elif [[ "$fluidity_flavour_choice" == -t ]]; then
+   
+         # invoke establishSOCATlink
+         establishSOCATlink $fluidity_connection_ID $server_tunnel_ip \
+         $server_listening_port $client_tunnel_ip $client_ip_add $client_username \
+         $tunneling_network_subnet_mask $server_ip_add -t
+      
+      fi
+      
+      # Information message to user.
+      echo "Fluidity link for connection $fluidity_connection_ID successfully re-established."
+   
+      # invoke deleteDoNotEncryptToken
+      # Unblock FLdaemon_SeekAndEncrypt.service
+      deleteDoNotEncryptToken $fluidity_connection_ID $client_ip_add $client_username
+   
+}
 
 # Arguments: ($1), ($2), ($3), ($4)
 # $1: Fluidity Connection ID [SSH_ID.SSL_ID] 
@@ -2573,8 +2798,10 @@ deleteSSLpair () {
    
 }
 
-# Arguments: ($1)
-# $1: Fluidity Connection ID [SSH_ID.SSL_ID] 
+# Arguments: ($1), ($2), ($3)
+# $1: Fluidity Connection ID [SSH_ID.SSL_ID]
+# $2: Client IP address.
+# $3: Client Username.
 
 # Sourced Variables: NONE
 
@@ -2622,8 +2849,10 @@ copyDoNotEncryptToken() {
    
 }
 
-# Arguments: ($1)
-# $1: Fluidity Connection ID [SSH_ID.SSL_ID] 
+# Arguments: ($1), ($2), ($3)
+# $1: Fluidity Connection ID [SSH_ID.SSL_ID]
+# $2: Client IP address.
+# $3: Client Username.
 
 # Sourced Variables: NONE
 
@@ -2693,9 +2922,16 @@ deleteDoNotEncryptToken () {
 # Generates: Nothing
  
 # Invokes Functions:
-# 1. openPort, with args ($4)
-# 2. establishSOCATlink, with args ($2), ($3), ($5), ($4), ($6), 
-#   ($client_IP_address), ($client_username), ($7), ($server_IP_address), ($1)
+# 1. inactiveLinkInternalSSLrenew, with args: ($2) ($3)
+# 2. destroyRunTimeVars, with args: ($2) ($3)
+# 3. deleteSOCATlinkStateInformation, with args: ($2) ($3)
+# 4. checkForConnectionFolderAndDecrypt, with args: ($2) ($3) 
+#     ($client_IP_address) ($client_username)
+# 5. recallSSHidentity, with args: ($2)
+# 6. openPort, with args: ($4)
+# 7. establishSOCATlink, with args: ($2), ($3), ($5), ($4), ($6), 
+#    ($client_IP_address), ($client_username), ($7), 
+#     ($server_IP_address), ($1)
 
 # Calls the script: NONE
 
@@ -2741,9 +2977,9 @@ runFluidity () {
          return
       fi
    
-   # Precautionary action 1: Fluidity abnormally shut down while a SSL
-   # substitution was in progress. Delete the previous state information
-   # and perform a SSL substitution.
+   # Precautionary action 1: Fluidity server abnormally shut down while 
+   # a SSL substitution was in progress. Delete the previous state 
+   # information and complete the substitution.
    elif [[ $(getFluidityConnectionStatus) == SSL_TERMINATING ]]\
    || [[ $(getFluidityConnectionStatus) == SSL_TERMINATION_PENDING ]]; then
    
@@ -2757,11 +2993,14 @@ runFluidity () {
          deleteSOCATlinkStateInformation $2.$3
       fi
    
-      # Invoke reinstallSSLcerts
-      reinstallSSLcerts $1.$2 $client_IP_address $client_username $server_IP_address
+      # Invoke checkForConnectionFolderAndDecrypt
+      checkForConnectionFolderAndDecrypt $2.$3 $client_IP_address $client_username
+
+      # Invoke internalSSLrenew
+      inactiveLinkInternalSSLrenew $2.$3
       
-   # Precautionaty action 2: Delete remaining state information from an
-   # adnormal shutdown.
+   # Precautionaty action 2: Delete the remaining state information 
+   # caused by an adnormal shutdown.
    else
    
       # Conditionally invoke destroyRunTimeVars:
@@ -3058,6 +3297,9 @@ stopFluidity () {
 
 }
 
+
+# 6. Fluidity Engine Functions
+# 6.2 Private Functions
 # 6.2.1 Firewalling
 
 
@@ -3112,6 +3354,7 @@ closePort () {
 }
 
 
+# 6. Fluidity Engine Functions
 # 6.2 Private Functions
 # 6.2.2 Engine Administration
 
@@ -3387,6 +3630,8 @@ stopFluidityToRenewSSLcerts () {
 }
 
 
+# 6. Fluidity Engine Functions
+# 6.2 Private Functions
 # 6.2.3 Link Setup
 
 
@@ -3463,8 +3708,11 @@ establishSOCATlink () {
 }
 
 
+# 6. Fluidity Engine Functions
+# 6.2 Private Functions
+# 6.2.3 Link Setup
 # 6.2.3.1 Link State Information Administration
-# 6.2.3.1.1 Static Information
+# 6.2.3.1.1 Managing Static Information
 
 
 # Arguments: ($1), ($2), ($3), ($4), ($5), ($6), ($7), ($8), ($9)
@@ -3566,7 +3814,11 @@ deleteSOCATlinkStateInformation () {
 }
 
 
-# 6.2.3.1.2 Dynamic Information
+# 6. Fluidity Engine Functions
+# 6.2 Private Functions
+# 6.2.3 Link Setup
+# 6.2.3.1 Link State Information Administration
+# 6.2.3.1.2 Managing Dynamic Information
 
 
 # Arguments: ($1)
@@ -3648,6 +3900,9 @@ destroyRunTimeVars () {
 }
 
 
+# 6. Fluidity Engine Functions
+# 6.2 Private Functions
+# 6.2.3 Link Setup
 # 6.2.3.2 Server Setup
 
 
@@ -3877,6 +4132,10 @@ runTUNnelSOCATserver () {
    
 }
 
+
+# 6. Fluidity Engine Functions
+# 6.2 Private Functions
+# 6.2.3 Link Setup
 # 6.2.3.3 Client Setup
 
 
@@ -3905,9 +4164,13 @@ runTUNnelSOCATserver () {
 # Generates: Nothing
 
 # Invokes functions:
-# 1. checkForConnectionFolderAndDecrypt, with args ($1), ($4), ($5)
-# 2. runSOCATclient, with args ($1), ($2), ($3), ($4), ($5), ($6)
-# 3. encryptClient, with args ($1), ($4), ($5)
+# 1. checkForConnectionFolderAndDecrypt, with args: ($1), ($4), ($5)
+# 2. verifyThatTokenSlotFolderIsEmpty, with args: ($1), ($4), ($5)
+# 3. verifyTheSSLCertificates, with args: ($1), ($4), ($5)
+# 4. doAClientServerMD5EquivalencyCheck, with args: ($1), ($4), ($5)
+# 5. inactiveLinkInternalSSLrenew, with args: ($1)
+# 6. runSOCATclient, with args: ($1), ($2), ($3), ($4), ($5), ($6)
+# 7. encryptClient, with args: ($1), ($4), ($5)
 
 # Function Description: Adding persistence to runSOCATclient with a few
 # twists.
@@ -3971,6 +4234,45 @@ runPersistentSOCATClient () {
          # the client folder is decrypted. If not, then decrypt it.
          checkForConnectionFolderAndDecrypt $1 $4 $5
          
+         # The following section covers the possiblity of a
+         # corrupted - incomplete SSL installation. 
+         # If such a case occurs an SSL substitution will be initiated.
+         
+         # Precautionary action 1: Verify that the SSL certificates
+         # are properly installed and ready to be used. If any of the
+         # following safety checks (2, 3 and 4) fails, then do a 
+         # cerficate substitution.
+         
+         # Safety Check 2: Verify that client tokenSlot folder is empty.
+         # Safety Check 3: Verify that all client and server SSL 
+         # certificates are present and properly installed in their 
+         # corresponding folders.
+         # Safety Check 4: Verify that .crt and .pem client - server
+         # MD5 hashes match.
+         
+         # Invoke verifyThatTokenSlotFolderIsEmpty
+         # Invoke verifyTheSSLCertificates
+         # Invoke doAClientServerMD5EquivalencyCheck
+         # While any of the following conditions applies perform a SSL
+         # substitution.
+         while verifyThatTokenSlotFolderIsEmpty $1 $4 $5 | grep -e 'verifyThatTokenSlotFolderIsEmpty FAILED'\
+          || verifyThatSSLCertificatesExist $1 $4 $5 | grep -e 'verifyThatSSLCertificatesExist FAILED'\
+           || doAClientServerMD5EquivalencyCheck $1 $4 $5 | grep -e 'doAClientServerMD5EquivalencyCheck FAILED'; do
+   
+            # Message to user.
+            echo "Initiating an SSL substitution."
+         
+            # Invoke internalSSLrenew
+            # An aforomentioned safety check failed. Initiate an SSL
+            # substitution.
+            inactiveLinkInternalSSLrenew $1
+         
+            # Invoke checkForConnectionFolderAndDecrypt:
+            # Do a preemptive connection client folder decryption.
+            checkForConnectionFolderAndDecrypt $1 $4 $5
+         
+         done
+
          # Fluidity Finite State Machine 
          # State change to: ACTIVE
          setFluidityConnectionStatus $1 "ACTIVE"
@@ -4301,6 +4603,10 @@ runTUNnelSOCATclient() {
 }
 
 
+# 6. Fluidity Engine Functions
+# 6.2 Private Functions
+# 6.2.3 Link Setup
+# 6.2.3.3 Client Setup
 # 6.2.3.3.1 Client Administration
 
 
@@ -4317,6 +4623,8 @@ runTUNnelSOCATclient() {
 
 # Generates: Nothing
 
+# Calls the script: NONE
+
 # Invokes functions:
 # 1. isItEncryptedOnClient, with args ($1), ($2), ($3)
 # 2. decryptClient, with args ($1), ($2), ($3)
@@ -4331,10 +4639,10 @@ checkForConnectionFolderAndDecrypt () {
    # and check whehter is 0. If it is, then the folder should be decrypted
    # with decryptClient. Else, the folder is already decrypted.
    if [ -z "$(isItEncryptedOnClient $1 $2 $3)" ] ; then
-      echo "connection.$1 folder on client machine is encrypted. Executing ecryptFS."
+      echo "Fluidity client connection.$1 folder found encrypted. Executing ecryptFS."
       decryptClient $1 $2 $3
    else
-      echo "connection.$1 folder is already decrypted and ready for use."
+      echo "Fluidity client connection.$1 folder found decrypted."
    fi
    
 }
@@ -4399,7 +4707,7 @@ isItEncryptedOnClient () {
 # Invokes Functions: NONE
 
 # Calls the script:
-# 1. genSCRIPT_decrClient.sh $decr_Pass
+# 1. genSCRIPT_decrClient.sh, with args $decr_Pass
 # in ~/Fluidity_Server/Generated_Scripts
 
 # Function Description: Decrypt the contents of folder ~/Fluidity_Client/Connection$1
@@ -4482,6 +4790,211 @@ encryptClient () {
 }
 
 
+# 6. Fluidity Engine Functions
+# 6.2 Private Functions
+# 6.2.4 SSL Certificates Verification Functions
+
+
+# Arguments: ($1), ($2), ($3)
+# $1: Fluidity Connection ID [SSH_ID.SSL_ID]
+# $2: Client IP address
+# $3: Client username (for raspbian OS the default is pi@)
+
+# Sourced Variables: NONE
+
+# Intershell File Variables in use: NONE
+
+# Global Variables in use: NONE
+
+# Generates: Nothing
+
+# Calls the script: NONE
+
+# Invokes Functions: NONE
+
+# Function Description: Do a verification check that tokenSlot folder
+# is empty and contains no files.
+verifyThatTokenSlotFolderIsEmpty () {
+   
+   if [ "$(ssh $3@$2 ls -A ~/Fluidity_Client/connection.$1/tokenSlot)" ]; then
+      # Message to calling function.
+      echo "verifyThatTokenSlotFolderIsEmpty FAILED"
+   else
+      # Message to calling function.
+      echo "verifyThatTokenSlotFolderIsEmpty PASSED"
+   fi
+   
+}
+
+# Arguments: ($1), ($2), ($3)
+# $1: Fluidity Connection ID [SSH_ID.SSL_ID]
+# $2: Client IP address
+# $3: Client username (for raspbian OS the default is pi@)
+
+# Sourced Variables: NONE
+
+# Intershell File Variables in use: NONE
+
+# Global Variables in use: NONE
+
+# Generates: Nothing
+
+# Calls the script: NONE
+
+# Invokes Functions: NONE
+
+# Function Description: Perform a file check that each client-server 
+# SSL certificate is present in its proper folder.
+verifyThatSSLCertificatesExist () {
+   
+   local SSH_ID=${1%.*}
+   
+   if [ -d ~/Fluidity_Server/client.$SSH_ID/connection.$1 ]; then
+   
+      if [ ! -f ~/Fluidity_Server/client.$SSH_ID/connection.$1/clientcon.$1.crt ]; then
+         echo "clientcon.$1.crt is missing."
+         # Message to calling function.
+         echo "verifyThatSSLCertificatesExist FAILED"
+         return
+      elif [ ! -f ~/Fluidity_Server/client.$SSH_ID/connection.$1/servercon.$1.pem ]; then
+         echo "servercon.$1.pem is missing."
+         # Message to calling function.
+         echo "verifyThatSSLCertificatesExist FAILED"
+         return
+      elif [ ! $(ssh $3@$2 ls -A ~/Fluidity_Client/connection.$1/servercon.$1.crt) ]; then
+         echo "servercon.$1.crt is missing."
+         # Message to calling function.
+         echo "verifyThatSSLCertificatesExist FAILED"
+         return
+      elif [ ! $(ssh $3@$2 ls -A ~/Fluidity_Client/connection.$1/clientcon.$1.pem) ]; then
+         echo "clientcon.$1.pem is missing."
+         # Message to calling function.
+         echo "verifyThatSSLCertificatesExist FAILED"
+         return
+      else
+         # Message to calling function.
+         echo "verifyThatSSLCertificatesExist PASSED"
+      fi
+      
+   fi
+   
+}
+
+# Arguments: ($1), ($2), ($3)
+# $1: Fluidity Connection ID [SSH_ID.SSL_ID]
+# $2: Client IP address
+# $3: Client username (for raspbian OS the default is pi@)
+
+# Sourced Variables: NONE
+
+# Intershell File Variables in use: NONE
+
+# Global Variables in use: NONE
+
+# Generates: 
+# 1. Bash script (.sh): genSCRIPT_retrieveClientPemMD5.sh
+
+# Calls the script: 
+# 1. genSCRIPT_retrieveClientPemMD5.sh, with args ($1),
+# $client_bogus_pass in ~/Fluidity_Server/Generated_Scripts
+
+# Invokes Functions: NONE
+
+# Function Description: Check that the client - server .crt and .pem 
+# MD5 file hashes match. If they match, the client certificates are 
+# valid and ready to be used.
+doAClientServerMD5EquivalencyCheck () {
+
+   local SSH_ID=${1%.*}
+
+   local server_pass=$(cat ~/Fluidity_Server/client.$SSH_ID/connection.$1/s_password.$1.txt)
+   # Recall and store client's SSH certificate password
+   local client_bogus_pass=$(cat ~/Fluidity_Server/client.$SSH_ID/connection.$1/c_bogus_password.$1.txt)
+   # echo "Client bogus pass is: $client_bogus_pass"
+   
+   local expect_out=$(expect -c '
+      spawn $env(SHELL)
+      expect "\\$" {
+         send "(openssl rsa -noout -modulus -in ~/Fluidity_Server/client.'$SSH_ID'/connection.'$1'/servercon.'$1'.pem | openssl md5)\r"
+      }
+      expect -re "servercon.'$1'.pem:" {
+         send "'$server_pass'\r"
+      }
+      expect "\\$" {
+         send "exit\r"
+      }
+   ')
+   
+   local server_pem_md5=$(echo "$expect_out" | grep -o '(stdin)=.*')
+   # echo "server_pem_md5 is: $server_pem_md5"
+   
+   local client_crt_md5=$(openssl x509 -noout -modulus -in ~/Fluidity_Server/client.$SSH_ID/connection.$1/clientcon.$1.crt | openssl md5)
+   # echo "client_crt_md5 is: $client_crt_md5"
+
+   # Generate bash script genSCRIPT_retrieveClientPemMD5.sh
+
+   # If an existing configuration file is found, leave it intact. Else,
+   # create a new one with the default settings.
+   if [[ ! -e ~/Fluidity_Server/client.$SSH_ID/connection.$1/genSCRIPT_retrieveClientPemMD5.sh ]]; then
+   
+      cat <<- 'END_CAT' > ~/Fluidity_Server/client.$SSH_ID/connection.$1/genSCRIPT_retrieveClientPemMD5.sh
+      cd ~/Fluidity_Client/connection.$1
+
+      pass=$(echo $hashed_pass | openssl enc -aes-128-cbc -a -d -salt -pass pass:$2)
+      expect_out=$(expect -c '
+         spawn $env(SHELL)
+         expect "\\$" {
+            send "(openssl rsa -noout -modulus -in ~/Fluidity_Client/connection.'$1'/clientcon.'$1'.pem) | (openssl md5)\r"
+         }
+         expect -re "clientcon.'$1'.pem:" {
+            send "'$pass'\r"
+         }
+         expect "\\$" {
+            send "exit\r"
+         }
+      ')
+      
+      echo "$expect_out" | grep -o '(stdin)=.*'
+END_CAT
+
+      chmod 700 ~/Fluidity_Server/client.$SSH_ID/connection.$1/genSCRIPT_retrieveClientPemMD5.sh
+
+      echo "sed -i '2s/.*/$(echo hashed_pass="$(cat ~/Fluidity_Server/client.$SSH_ID/connection.$1/hashed_clientpass_con.$1.txt)" | sed -e 's/[\/&]/\\&/g' )/' ~/Fluidity_Server/client.$SSH_ID/connection.$1/genSCRIPT_retrieveClientPemMD5.sh" | bash -
+      
+   fi
+
+   # SSH remotely execute genSCRIPT_retrieveClientPemMD5.sh
+   local client_pem_md5=$(ssh $3@$2 'bash -s' < ~/Fluidity_Server/client.$SSH_ID/connection.$1/genSCRIPT_retrieveClientPemMD5.sh $1 $client_bogus_pass)
+   # echo "client_pem_md5 is: $client_pem_md5"
+   local server_crt_md5=$(ssh $3@$2 openssl x509 -noout -modulus -in ~/Fluidity_Client/connection.$1/servercon.$1.crt | openssl md5)
+   # echo "server_crt_md5 is: $server_crt_md5"
+   
+   if [[ ${server_pem_md5:9:32} == ${server_crt_md5:9:32} ]]\
+    && [[ ${client_pem_md5:9:32} == ${client_crt_md5:9:32} ]]; then
+    
+      echo 'servercon.'$1'.pem MD5 is: '${server_pem_md5:9:32}
+      echo 'servercon.'$1'.crt MD5 is: '${server_crt_md5:9:32}
+      echo 'clientcon.'$1'.pem MD5 is: '${client_pem_md5:9:32}
+      echo 'clientcon.'$1'.crt MD5 is: '${client_crt_md5:9:32}
+      # Message to calling function.
+      echo "doAClientServerMD5EquivalencyCheck PASSED"
+      
+   else
+   
+      echo 'servercon.'$1'.pem MD5 is: '${server_pem_md5:9:32}
+      echo 'servercon.'$1'.crt MD5 is: '${server_crt_md5:9:32}
+      echo 'clientcon.'$1'.pem MD5 is: '${client_pem_md5:9:32}
+      echo 'clientcon.'$1'.crt MD5 is: '${client_crt_md5:9:32}
+      # Message to calling function.
+      echo "doAClientServerMD5EquivalencyCheck FAILED"
+      
+   fi
+   
+   rm ~/Fluidity_Server/client.$SSH_ID/connection.$1/genSCRIPT_retrieveClientPemMD5.sh
+}
+
+
+# 6. Fluidity Engine Functions
 # 6.3 Engine Auxillary Functions
 # 6.3.1 Public Functions
 
@@ -4552,6 +5065,7 @@ forcePing () {
 
 # 7. Fluidity Connection Status Functions
 # 7.1 Public Functions
+
 
 # Arguments: ($1)
 # $1: Fluidity Client (SSH) Connection ID.
@@ -4785,6 +5299,7 @@ changeRemoteHostName () {
 }
 
 
+# 8. Auxillary Functions
 # 8.2 Private Auxillary Functions
 
 
