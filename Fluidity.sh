@@ -59,7 +59,10 @@
 #		recallSSHidentity
 #		displaySerialDevices
 #		changeRemoteHostName
-
+#		findInterfaceFromIP
+# 9. Managing Internal Interfaces
+#		setInternalInterface
+#		removeInternalInterface
 
 # Program Structure
 # 
@@ -121,6 +124,10 @@
 #		6.2.1 Firewalling
 #			openPort
 #			closePort
+#			openTheLocalTunnelInterface
+#			openTheRemoteTunnelInterface
+#			closeTheLocalTunnelInterface
+#			closeTheRemoteTunnelInterface
 #		6.2.2 Engine Administration
 #			terminationForcePing
 #			stopFluidityToRenewSSLcerts
@@ -163,12 +170,16 @@
 #		recallSSHidentity
 #		displaySerialDevices
 #		changeRemoteHostName
+#		findInterfaceFromIP
 # 	8.2 Private Functions
 #		giveAnEntropyBoost
 #		checkFluidityFilesystemIntegrity
 #		checkLocalEntropy
 #		checkRemoteEntropy
-
+# 9. Managing Internal Interfaces
+# 	9.1 Public Functions
+#		setInternalInterface
+#		removeInternalInterface
 
 # 1. Fluidity Intershell Variables
 
@@ -400,7 +411,6 @@ installFluidity () {
       
 }
 
-
 # Arguments: NONE
 
 # Sourced Variables: NONE
@@ -631,21 +641,30 @@ mainServerFolderCreation () {
 
    # Encrypt the main folder with ecryptfs-utils and the following
    # settings: 
-		# Encryption cypher: AES
-		# Key size: 256 bits
-		# File Name Encryption: Enabled
+      # Encryption cypher: AES
+      # Key size: 256 bits
+      # File Name Encryption: Enabled
 expect << EOF
-	   spawn sudo mount -t ecryptfs \
-	-o key=passphrase:passphrase_passwd=$encr_pass,\
-	ecryptfs_cipher=aes,\
-	ecryptfs_key_bytes=32,\
-	ecryptfs_enable_filename=y,\
-	ecryptfs_passthrough=n,\
-	ecryptfs_enable_filename_crypto=y\
-	 ./Fluidity_Server ./Fluidity_Server
-	   expect {\]: }
-	   send "\n"
-	   expect eof
+ spawn sudo mount -t ecryptfs \
+-o key=passphrase:passphrase_passwd=$encr_pass,\
+ecryptfs_cipher=aes,\
+ecryptfs_key_bytes=32,\
+ecryptfs_enable_filename=y,\
+ecryptfs_passthrough=n,\
+ecryptfs_enable_filename_crypto=y\
+ ./Fluidity_Server ./Fluidity_Server
+ expect {
+	 {\]: } {send "\n"}
+ }
+ expect {
+	 "(yes/no)? :" {send "yes\n"}
+	 eof {send ""}
+ }
+ expect {
+	 "(yes/no)? :" {send "yes\n"}
+	 eof {send ""}
+ }
+ expect eof
 EOF
 
    echo -e "\n\n\n"
@@ -703,8 +722,7 @@ serverFolderBackboneCreation () {
 # 3.1 Public Functions
 
 
-# Arguments:
-# $1: Server IP address.
+# Arguments: NONE
 
 # Sourced Variables: NONE
 
@@ -758,17 +776,9 @@ fluidityClientConfiguration () {
       # also perform the initial Firewall configuration.
       if ! [ -x "$(command -v ufw)" ]; then
          sudo apt-get -y install ufw
-         
-         # Basic client firewall configuration
-         
+         # Activate ufw
          sudo systemctl enable ufw
-         
-         # Allow all the outgoing traffic
-         sudo ufw default allow outgoing
-         # Deny all the incoming traffic
-         sudo ufw default deny incoming
-         # Only allow SSH connections from the Fluidity Server IP.
-         sudo ufw allow from $1 to any port 22 proto tcp
+         sudo systemctl start ufw
       fi
       
       # Invoke giveAnEntropyBoost
@@ -776,9 +786,7 @@ fluidityClientConfiguration () {
       
       # Modify sshd_config to implement the following policies. 
       
-      # Set the maximum number of authentication retries to 1.
-      echo "sudo sed -i '34s/.*/$(echo \#MaxAuthTries 1)/' /etc/ssh/sshd_config" | bash -
-      # Set the maximum amount of concurrent sessions to 1.
+      # Set the maximum number of concurrent sessions to 2.
       echo "sudo sed -i '35s/.*/$(echo \#MaxSessions 2)/' /etc/ssh/sshd_config" | bash -
       
    # Error handling case:
@@ -896,7 +904,7 @@ addFluidityClient () {
    # Use openssl rand to generate an 8 character string.
    # Store the outcome to $passphrase_1 so that it can be used 
    # by ssh-keygen.
-   SSH_passphrase[$array_index]=$(openssl rand -base64 8)
+   SSH_passphrase[$array_index]=$(openssl rand -base64 12)
 
    # Store the generated password to SSH_Vault for
    # permanent file storage and future reference.
@@ -969,7 +977,7 @@ EOF
    # Invoke remoteSeekAndEncryptDaemonInstallation to
    # install FLdaemon_SeekAndEncrypt.service.
    remoteSeekAndEncryptDaemonInstallation $3 $5 $1 $2
-   
+
 }
 
 
@@ -1079,7 +1087,13 @@ removeFluidityClient () {
 '      rm ~/.ssh/known_hosts.old\n'\
 '   fi\n'\
 '   \n'\
-'   # SECTION 2.4 (Return message to server and Safety Check 3):\n'\
+'   # SECTION 2.4: Set sshd_config to default policies\n'\
+'   echo "sudo sed -i '"'"'34s/.*/$(echo \#MaxAuthTries 6)/'"'"' /etc/ssh/sshd_config" | bash -\n'\
+'   echo "sudo sed -i '"'"'35s/.*/$(echo \#MaxSessions 10)/'"'"' /etc/ssh/sshd_config" | bash -\n'\
+'   echo "sudo sed -i '"'"'56s/.*/$(echo \#PasswordAuthentication yes)/'"'"' /etc/ssh/sshd_config" | bash -\n'\
+'   ( sleep 20 ; sudo service ssh restart ) &\n'\
+'   \n'\
+'   # SECTION 2.5 (Return message to server and Safety Check 3):\n'\
 '   # Scan the ~/.ssh/authorized_keys file for the "SSH remote connection"\n'\
 '   # addFluidityClient message. If the message is detected return to\n'\
 '   # server a SUCCESS signal and revoke the SSH passwordless access rights \n'\
@@ -1155,7 +1169,13 @@ removeFluidityClient () {
 '      rm ~/.ssh/known_hosts.old\n'\
 '   fi\n'\
 '   \n'\
-'   # SECTION 2.4 (Return message and do safety check 3):\n'\
+'   # SECTION 2.4: Set sshd_config to default policies\n'\
+'   echo "sudo sed -i '"'"'34s/.*/$(echo \#MaxAuthTries 6)/'"'"' /etc/ssh/sshd_config" | bash -\n'\
+'   echo "sudo sed -i '"'"'35s/.*/$(echo \#MaxSessions 10)/'"'"' /etc/ssh/sshd_config" | bash -\n'\
+'   echo "sudo sed -i '"'"'56s/.*/$(echo \#PasswordAuthentication yes)/'"'"' /etc/ssh/sshd_config" | bash -\n'\
+'   ( sleep 20 ; sudo service ssh restart ) &\n'\
+'   \n'\
+'   # SECTION 2.5 (Return message and do safety check 3):\n'\
 '   # Scan ~/.ssh/authorized_keys for the "SSH remote connection"\n'\
 '   # addFluidityClient message. If the message is detected return to\n'\
 '   # server a SUCCESS signal and remove the line offering SSH \n'\
@@ -1240,13 +1260,17 @@ removeFluidityClient () {
 # Global Variables in use: NONE
 
 # Generates:
-# Bash script (.sh): genSCRIPT_fluidityRemoteClientConfiguration.sh
+# 1. Bash script (.sh): genSCRIPT_fluidityRemoteClientConfiguration.sh
+# 2. Bash script (.sh): genSCRIPT_fluidityRemoteClientFirewallConfiguration.sh
 
 # Invokes Functions: NONE
 
 # Calls the script:
-# 1. genSCRIPT_fluidityRemoteClientConfiguration.sh, no args
+# 1. genSCRIPT_fluidityRemoteClientConfiguration.sh, with args: 
+#  $entropy_source_user_choice
 # in: ~/Fluidity_Server/Generated_Scripts
+# 2. genSCRIPT_fluidityRemoteClientFirewallConfiguration.sh with args:
+#  $3
 
 # Function Description: 
    # 1. Create the main folder structure  (~/Fluidity_Client)
@@ -1264,6 +1288,25 @@ removeFluidityClient () {
             # c. Allow inbound SSH connections.
       
 fluidityRemoteClientConfiguration () {
+ 
+
+local $entropy_source_user_choice
+
+while true; do 
+   echo "Fluidity requires a high quality entropy source"\
+    && echo "Which utility do you prefer to choose?"\
+    && echo "1. for Haveged"\
+    && echo "2. for rng-tools"\
+    && read -p "_" entropy_source_user_choice  
+      case $entropy_source_user_choice in 
+         [1]* ) echo "Installing Haveged" 
+         break;; 
+         [2]* ) echo "Installing rng-tools"  
+         break;; 
+         * ) echo "1 for Haveged, 2 for rng-tools";; 
+      esac 
+done 
+ 
  
    if [[ ! -e ~/Fluidity_Server/Generated_Scripts/genSCRIPT_fluidityRemoteClientConfiguration.sh ]]; then
    
@@ -1286,53 +1329,98 @@ fluidityRemoteClientConfiguration () {
       '\n   sudo apt-get -y install lsof'\
       '\nfi'\
       '\n'\
-      '\nif ! [ -x "$(command -v ufw)" ]; then'\
-      '\n   sudo apt-get -y install ufw'\
-      '\n   sudo systemctl enable ufw'\
-      '\n   sudo ufw default allow outgoing'\
-      '\n   sudo ufw default deny incoming'\
-      '\n   sudo ufw allow from '$3' to any port 22 proto tcp'\
-      '\nfi'\
-      '\nif ! [ -x "$(command -v haveged)" ] && [ -x "$(command -v rngd)" ]; then'\
-      '\n   while true; do'\
-      '\n   echo "Fluidity requires a high quality entropy source" \\\n'\
-      '   && echo "Which utility you prefer to choose?" \\\n'\
-      '   && echo "1. for Haveged" \\\n'\
-      '   && echo "2. for rng-tools" \\\n'\
-      '   && read -p "_" choice '\
-      '\n      case $choice in'\
-      '\n         [1]* ) echo "Installing Haveged"'\
-      '\n            sudo apt-get -y install haveged'\
-      '\n            # Start the "HAVEGED" service'\
-      '\n            sudo systemctl start haveged'\
-      '\n         break;;'\
-      '\n         [2]* ) echo "Installing rng-tools"'\
-      '\n            sudo apt-get -y install rng-tools'\
-      '\n            # Start the "rng-tools" service'\
-      '\n            sudo systemctl start rng-tools'\
-      '\n         break;;'\
-      '\n         * ) echo "1 for Haveged, 2 for rng-tools";;'\
-      '\n      esac'\
-      '\n   done'\
+      '\nif ! [ -x "$(command -v haveged)" ] && ! [ -x "$(command -v rngd)" ]; then'\
+      '\n   case $1 in'\
+      '\n      [1]* ) echo "Installing Haveged"'\
+      '\n         sudo apt-get -y install haveged'\
+      '\n         # Start the "HAVEGED" service'\
+      '\n         sudo systemctl start haveged'\
+      '\n      ;;'\
+      '\n      [2]* ) echo "Installing rng-tools"'\
+      '\n         sudo apt-get -y install rng-tools'\
+      '\n         # Start the "rng-tools" service'\
+      '\n         sudo systemctl start rng-tools'\
+      '\n      ;;'\
+      '\n   esac'\
       '\nelif [ -x "$(command -v haveged)" ]; then'\
       '\n   echo "Haveged is already installed"'\
       '\nelif [ -x "$(command -v rngd)" ]; then'\
       '\n   echo "rng-tools are already installed"'\
       '\nfi'\
-      '\necho "sudo sed -i '"'"'34s/.*/$(echo \#MaxAuthTries 1)/'"'"' /etc/ssh/sshd_config" | bash -'\
       '\necho "sudo sed -i '"'"'35s/.*/$(echo \#MaxSessions 2)/'"'"' /etc/ssh/sshd_config" | bash -'\
+      '\necho "sudo sed -i '"'"'56s/.*/$(echo \#PasswordAuthentication no)/'"'"' /etc/ssh/sshd_config" | bash -'\
       '\nsudo service ssh restart' > \
       ~/Fluidity_Server/Generated_Scripts/genSCRIPT_fluidityRemoteClientConfiguration.sh
       chmod 700 ~/Fluidity_Server/Generated_Scripts/genSCRIPT_fluidityRemoteClientConfiguration.sh
       
+   fi
+      
+   if [[ ! -e ~/Fluidity_Server/Generated_Scripts/genSCRIPT_fluidityRemoteClientFirewallConfiguration.sh ]]; then
+      
+      cat <<- END_CAT > ~/Fluidity_Server/Generated_Scripts/genSCRIPT_fluidityRemoteClientFirewallConfiguration.sh
+         if ! [ -x "$(command -v ufw)" ]; then
+         
+            sudo apt-get -y install ufw
+            
+            sudo systemctl enable ufw
+            sudo systemctl start ufw
+            
+            if sudo ufw status | grep "Status: inactive"; then
+               expect << EOF
+               spawn sudo ufw enable
+               expect "operation (y|n)?"
+               send "y\r"
+               expect eof
+EOF
+            fi
+            
+            sudo ufw default allow outgoing
+            sudo ufw default deny incoming
+            sudo ufw allow from $3 to any port 22 proto tcp
+            
+            sudo ufw status
+            
+         else
+         
+            if systemctl status ufw | grep "inactive"; then
+               sudo systemctl enable ufw
+               sudo systemctl start ufw
+            else
+               echo "ufw is active"
+            fi
+            
+            if sudo ufw status | grep "Status: inactive"; then
+               expect << EOF
+               spawn sudo ufw enable
+               expect "operation (y|n)?"
+               send "y\r"
+               expect eof
+EOF
+            fi
+            
+            sudo ufw default allow outgoing
+            sudo ufw default deny incoming
+            sudo ufw allow from $3 to any port 22 proto tcp
+            
+            sudo ufw status
+            
+         fi
+END_CAT
+
+      chmod 700 ~/Fluidity_Server/Generated_Scripts/genSCRIPT_fluidityRemoteClientFirewallConfiguration.sh
+      
    else
       
-      echo "sed -i '24s/.*/$(echo sudo ufw allow from $3 to any port 22 proto tcp)/' ~/Fluidity_Server/Generated_Scripts/genSCRIPT_fluidityRemoteClientConfiguration.sh" | bash -
+      echo "sed -i '14s/.*/$(echo sudo ufw allow from $3 to any port 22 proto tcp)/' ~/Fluidity_Server/Generated_Scripts/genSCRIPT_fluidityRemoteClientFirewallConfiguration.sh" | bash -
+      echo "sed -i '33s/.*/$(echo sudo ufw allow from $3 to any port 22 proto tcp)/' ~/Fluidity_Server/Generated_Scripts/genSCRIPT_fluidityRemoteClientFirewallConfiguration.sh" | bash -
       
    fi
    
    # SSH remotely execute genSCRIPT_fluidityRemoteClientConfiguration.sh
-   ssh $2@$1 'bash -s' < ~/Fluidity_Server/Generated_Scripts/genSCRIPT_fluidityRemoteClientConfiguration.sh
+   ssh $2@$1 'bash -s' < ~/Fluidity_Server/Generated_Scripts/genSCRIPT_fluidityRemoteClientConfiguration.sh $entropy_source_user_choice
+   
+   # SSH remotely execute genSCRIPT_fluidityRemoteClientFirewallConfiguration.sh
+   ssh $2@$1 'bash -s' < ~/Fluidity_Server/Generated_Scripts/genSCRIPT_fluidityRemoteClientFirewallConfiguration.sh
    
 }
 
@@ -2290,7 +2378,7 @@ installSSLcertificates () {
    # SECTION 1 - Folder creation
 
    # Encrypted folder password for Connection 1
-   encr_password[$array_index]=$(openssl rand -base64 8 | tr -dc A-Za-z0-9)
+   encr_password[$array_index]=$(openssl rand -base64 12 | tr -dc A-Za-z0-9)
    echo ${encr_password[$array_index]} > encr_password.$1.txt
    cat encr_password.$1.txt
 
@@ -2319,12 +2407,12 @@ installSSLcertificates () {
    # 2. c_password[$array_index].txt (Client SSL Password)
 
    # Server password for connection [(X) i.e. Client ID.SSL Virtual Circuit ID]
-   s_password[$array_index]=$(openssl rand -base64 8)
+   s_password[$array_index]=$(openssl rand -base64 12)
    echo ${s_password[$array_index]} > s_password.$1.txt
    cat s_password.$1.txt
 
    # Client password for connection [(X) i.e.Client ID.SSL Virtual Circuit ID]
-   c_password[$array_index]=$(openssl rand -base64 8)
+   c_password[$array_index]=$(openssl rand -base64 12)
    echo ${c_password[$array_index]} > c_password.$1.txt
    cat c_password.$1.txt
 
@@ -2336,7 +2424,7 @@ installSSLcertificates () {
    
    # Generate the client bogus password for 
    # connection [(X) i.e.Client ID.SSL Virtual Circuit ID]
-   c_bogus_password[$array_index]=$(openssl rand -base64 8)
+   c_bogus_password[$array_index]=$(openssl rand -base64 12)
    echo ${c_bogus_password[$array_index]} > c_bogus_password.$1.txt
    cat c_bogus_password.$1.txt
    
@@ -2497,12 +2585,12 @@ reinstallSSLcerts () {
    # 2. c_password[$array_index].txt (Client SSL Password)
 
    # Server password for connection [(X) i.e.Client ID.SSL Virtual Circuit ID]
-   s_password[$array_index]=$(openssl rand -base64 8)
+   s_password[$array_index]=$(openssl rand -base64 12)
    echo ${s_password[$array_index]} > s_password.$1.txt
    cat s_password.$1.txt
 
    # Client password for connection [(X) i.e.Client ID.SSL Virtual Circuit ID]
-   c_password[$array_index]=$(openssl rand -base64 8)
+   c_password[$array_index]=$(openssl rand -base64 12)
    echo ${c_password[$array_index]} > c_password.$1.txt
    cat c_password.$1.txt
 
@@ -2514,7 +2602,7 @@ reinstallSSLcerts () {
    
    # Generate the client bogus password for 
    # connection [(X) i.e.Client ID.SSL Virtual Circuit ID]
-   c_bogus_password[$array_index]=$(openssl rand -base64 8)
+   c_bogus_password[$array_index]=$(openssl rand -base64 12)
    echo ${c_bogus_password[$array_index]} > c_bogus_password.$1.txt
    cat c_bogus_password.$1.txt
 
@@ -2932,6 +3020,9 @@ deleteDoNotEncryptToken () {
 # 7. establishSOCATlink, with args: ($2), ($3), ($5), ($4), ($6), 
 #    ($client_IP_address), ($client_username), ($7), 
 #     ($server_IP_address), ($1)
+# 8. openTheLocalTunnelInterface, with args: ($5)
+# 9. openTheRemoteTunnelInterface, with args: ($client_IP_address),
+#    ($client_hostname), ($6)
 
 # Calls the script: NONE
 
@@ -3078,6 +3169,19 @@ runFluidity () {
    # Invoke establishSOCATlink
    establishSOCATlink $2.$3 $5 $4 $6 $client_IP_address $client_username $7 $server_IP_address $1
    
+   # For Fluidity -t
+   # Allow traffic through the tunnel interfaces in both the local and
+   # the remote machine.
+   if [[ "$1" == -t ]]; then
+   
+      # Invoke openTheLocalTunnelInterface
+      openTheLocalTunnelInterface $5
+      # Invoke openTheRemoteTunnelInterface
+      openTheRemoteTunnelInterface $2 $6
+      
+   fi
+   
+   
 }
 
 # Arguments: ($1)
@@ -3121,10 +3225,12 @@ runFluidity () {
 # Generates: Nothing
 
 # Invokes Functions:
-# 1. terminationForcePing, with args ($1)
-# 2. destroyRunTimeVars, with args ($1)
-# 3. deleteSOCATlinkStateInformation, with args ($1)
-# 4. closePort, with args $port
+# 1. closeTheLocalTunnelInterface, with args: ($server_tunnel_ip)
+# 2. closeTheRemoteTunnelInterface, with args: ($1), ($client_tunnel_ip)
+# 3. terminationForcePing, with args: ($1)
+# 4. destroyRunTimeVars, with args: ($1)
+# 5. deleteSOCATlinkStateInformation, with args: ($1)
+# 6. closePort, with args: $port
 
 # Calls the script: NONE
 
@@ -3179,6 +3285,16 @@ stopFluidity () {
       source ~/Fluidity_Server/client.$1/connection.$1.$2/link_information.txt
    fi
 
+   # For Fluidity -t
+   # Close the corresponding client and server tunnel interfaces.
+   if [[ "$fluidity_flavour_choice" == -t ]]; then
+   
+      # Invoke closeTheLocalTunnelInterface
+      closeTheLocalTunnelInterface $server_tunnel_ip
+      # Invoke closeTheRemoteTunnelInterface
+      closeTheRemoteTunnelInterface $1 $client_tunnel_ip
+      
+   fi
 
    # Fluidity Finite State Machine 
    # State change to: TERMINATING
@@ -3344,12 +3460,190 @@ openPort () {
 # Calls the script: NONE
 
 # Function Description: Instruct the Uncomplicated Firewall (UFW) to 
-# ALLOW traffic for the requested SOCAT server listening port.
+# delete the ALLOW rule regarding the requested SOCAT listening port.
 
 closePort () {
    
     # UFW: Rule change for port $1
-   sudo ufw deny $1
+   sudo ufw delete allow $1
+   
+}
+
+# Arguments: ($1)
+# $1: Server's tunnel interface IP
+
+# Sourced Variables: NONE
+
+# Intershell File Variables in use: NONE
+
+# Global Variables in use: NONE
+
+# Generates: NOTHING
+
+# Calls the script: NONE
+
+# Invokes Functions:
+# 1. findInterfaceFromIP with args: ($1)
+
+# Function Description: Allow inbound and outbound traffic from the
+# tunX Server interface. 
+openTheLocalTunnelInterface () {
+   
+   local interface
+   
+   interface=$(findInterfaceFromIP $1)
+   
+   sudo ufw allow in on $interface
+   sudo ufw allow out on $interface
+   
+}
+
+# Arguments: ($1), ($2)
+# $1: Fluidity Client (SSH) Connection ID.
+# $2: Clients's tunnel interface IP
+
+# Sourced Variables:
+# 1. ~/Fluidity_Server/client.$SSH_ID/basic_client_info.txt
+   # 1. $server_IP_address
+   # 2. $client_IP_address
+   # 3. $client_hostname
+
+# Intershell File Variables in use: NONE
+
+# Global Variables in use: NONE
+
+# Generates:
+# 1. Bash script (.sh): genSCRIPT_openTheRemoteTunnelInterface
+#  $1 $2 $3
+
+# Calls the script: 
+# 1. genSCRIPT_openTheRemoteTunnelInterface, with args ($1), ($2), ($3)
+
+# Invokes Functions:
+# In genSCRIPT_openTheRemoteTunnelInterface.sh:
+#   1. findInterfaceFromIP with args: ($1)
+
+# Function Description: Allow inbound and outbound traffic from the
+# tunX Client interface. 
+openTheRemoteTunnelInterface () {
+   
+      # Import the following set of variables:
+      # 1. $server_IP_address
+      # 2. $client_IP_address
+      # 3. $client_username
+   source ~/Fluidity_Server/client.$1/basic_client_info.txt
+   
+   if [[ ! -e ~/Fluidity_Server/Generated_Scripts/genSCRIPT_openTheRemoteTunnelInterface.sh ]]; then
+   
+      cat << EOF > ~/Fluidity_Server/Generated_Scripts/genSCRIPT_openTheRemoteTunnelInterface.sh
+interface=\$(sudo ifconfig | grep -B 2 $2 | cut -d' ' -f 1 | sed 's/://')
+      
+sudo ufw allow in on \$interface
+sudo ufw allow out on \$interface
+   
+EOF
+
+   else
+   
+      rm ~/Fluidity_Server/Generated_Scripts/genSCRIPT_openTheRemoteTunnelInterface.sh
+      
+      cat << EOF > ~/Fluidity_Server/Generated_Scripts/genSCRIPT_openTheRemoteTunnelInterface.sh
+interface=\$(sudo ifconfig | grep -B 2 $2 | cut -d' ' -f 1 | sed 's/://')
+      
+sudo ufw allow in on \$interface
+sudo ufw allow out on \$interface
+   
+EOF
+
+   fi
+
+   ssh $client_username@$client_IP_address 'bash -s' < ~/Fluidity_Server/Generated_Scripts/genSCRIPT_openTheRemoteTunnelInterface.sh
+
+}
+
+# Arguments: ($1)
+# $1: Fluidity Client (SSH) Connection ID.
+# $2: Clients's tunnel interface IP
+
+# Sourced Variables: NONE
+
+# Intershell File Variables in use: NONE
+
+# Global Variables in use: NONE
+
+# Generates: NOTHING
+
+# Calls the script: NONE
+
+# Invokes Functions:
+# 1. findInterfaceFromIP with args: ($1)
+
+# Function Description: Prohibit inbound and outbound traffic from the
+# tunX Server interface.
+closeTheLocalTunnelInterface () {
+   
+   interface=$(findInterfaceFromIP $1)
+   
+   sudo ufw delete allow in on $interface
+   sudo ufw delete allow out on $interface
+   
+}
+
+# Arguments: ($1)
+# $1: Clients's tunnel interface IP
+
+# Sourced Variables: NONE
+
+# Intershell File Variables in use: NONE
+
+# Global Variables in use: NONE
+
+# Generates:
+# 1. Bash script (.sh): genSCRIPT_closeTheRemoteTunnelInterface
+#  $1 $2 $3
+
+# Calls the script: 
+# 1. genSCRIPT_closeTheRemoteTunnelInterface, with args ($1), ($2), ($3)
+
+# Invokes Functions:
+# In genSCRIPT_closeTheRemoteTunnelInterface.sh:
+#   1. findInterfaceFromIP with args: ($1)
+
+# Function Description: Prohibit inbound and outbound traffic from the
+# tunX Client interface. 
+closeTheRemoteTunnelInterface () {
+   
+   # Import the following set of variables:
+      # 1. $server_IP_address
+      # 2. $client_IP_address
+      # 3. $client_username
+   source ~/Fluidity_Server/client.$1/basic_client_info.txt
+   
+   if [[ ! -e ~/Fluidity_Server/Generated_Scripts/genSCRIPT_closeTheRemoteTunnelInterface.sh ]]; then
+   
+      cat << EOF > ~/Fluidity_Server/Generated_Scripts/genSCRIPT_closeTheRemoteTunnelInterface.sh
+interface=\$(sudo ifconfig | grep -B 2 $2 | cut -d' ' -f 1 | sed 's/://')
+      
+sudo ufw delete allow in on \$interface
+sudo ufw delete allow out on \$interface
+   
+EOF
+
+   else
+   
+      rm ~/Fluidity_Server/Generated_Scripts/genSCRIPT_closeTheRemoteTunnelInterface.sh
+      
+      cat << EOF > ~/Fluidity_Server/Generated_Scripts/genSCRIPT_closeTheRemoteTunnelInterface.sh
+interface=\$(sudo ifconfig | grep -B 2 $2 | cut -d' ' -f 1 | sed 's/://')
+      
+sudo ufw delete allow in on \$interface
+sudo ufw delete allow out on \$interface
+   
+EOF
+
+   fi
+
+   ssh $client_username@$client_IP_address 'bash -s' < ~/Fluidity_Server/Generated_Scripts/genSCRIPT_closeTheRemoteTunnelInterface.sh
    
 }
 
@@ -4258,7 +4552,12 @@ runPersistentSOCATClient () {
          while verifyThatTokenSlotFolderIsEmpty $1 $4 $5 | grep -e 'verifyThatTokenSlotFolderIsEmpty FAILED'\
           || verifyThatSSLCertificatesExist $1 $4 $5 | grep -e 'verifyThatSSLCertificatesExist FAILED'\
            || doAClientServerMD5EquivalencyCheck $1 $4 $5 | grep -e 'doAClientServerMD5EquivalencyCheck FAILED'; do
-   
+            
+            if ! ping -c 4 $4; then
+               # Connection to client lost. Break the loop.
+               break
+            fi
+            
             # Message to user.
             echo "Initiating an SSL substitution."
          
@@ -5298,6 +5597,29 @@ changeRemoteHostName () {
 
 }
 
+# Arguments: ($1)
+# $1: IP address
+
+# Sourced Variables: NONE
+
+# Intershell File Variables in use: NONE
+
+# Global Variables in use: NONE
+
+# Generates: NOTHING
+
+# Calls the script: NONE
+
+# Invokes Functions: NONE
+
+# Function Description: Extract the physical interface from
+# the IP address.
+findInterfaceFromIP () {
+
+   ifconfig | grep -B 2 $1 | cut -d' ' -f 1 | sed 's/://'
+
+}
+
 
 # 8. Auxillary Functions
 # 8.2 Private Auxillary Functions
@@ -5483,3 +5805,97 @@ checkRemoteEntropy () {
 }
 
 
+# 9. Managing Internal Interfaces
+# 9.1 Public Managing Internal Interfaces
+
+
+# Arguments: ($1)
+# $1: Target Internal Physical Interface
+
+# Sourced Variables:
+# 1. ~/Fluidity_Server/client.$1/basic_client_info.txt
+   # 1. $server_IP_address
+   # 2. $client_IP_address
+   # 3. $client_username
+
+# Intershell File Variables in use: NONE
+
+# Global Variables in use: NONE
+
+# Generates: NOTHING
+
+# Calls the script: NONE
+
+# Invokes Functions:
+# 1. findInterfaceFromIP with args: ($server_IP_address)
+
+# Function Description: Set, from a Firewall perspective, the given
+# interface as "internal" by allowing all inbound and outbound traffic
+# through it.
+setInternalInterface () {
+   
+   for file in /Fluidity_Server/client.* ; do
+      
+      # Source the variables:
+         # 1. $server_IP_address
+         # 2. $client_IP_address
+         # 3. $client_username
+      source $(echo $file)/basic_client_info.txt
+         
+      interface=$(findInterfaceFromIP $server_IP_address)
+         
+      if [[ "$interface" == "$1" ]]; then
+            
+         echo "Fluidity $file with server IP address $server_IP_address is using interface $1 as an external interface"
+         return;
+            
+      fi
+         
+   done
+   
+   if ifconfig | grep "$1"; then
+   
+         sudo ufw allow in on $1
+         sudo ufw allow out on $1
+         
+   else
+   
+      echo "$1 is not a valid interface"
+      
+   fi
+
+}
+
+# Arguments: ($1)
+# $1: Target Internal Physical Interface
+
+# Sourced Variables: NONE
+
+# Intershell File Variables in use: NONE
+
+# Global Variables in use: NONE
+
+# Generates: NOTHING
+
+# Calls the script: NONE
+
+# Invokes Functions:
+# 1. findInterfaceFromIP with args: ($1)
+
+# Function Description: Unset, from a Firewall perspective, the given
+# interface from being "internal" and turn its Firewall settings back to
+# the default settings.
+removeInternalInterface () {
+
+   if ifconfig | grep "$1"; then
+   
+      sudo ufw delete allow in on $1
+      sudo ufw delete allow out on $1
+      
+   else
+   
+      echo "$1 is not a valid interface"
+      
+   fi
+
+}
