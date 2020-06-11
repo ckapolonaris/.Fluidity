@@ -37,34 +37,48 @@
 
 # Fluidity Public Interface
 #
+# Server Functions
+# 
 # 1. Server Creation - Configuration Functions
 #		installFluidity
 #		reinstallFluidity
 #		mountFluidityServerFolder
-# 2. Direct Client Creation - Configuration Functions
-#		fluidityClientConfiguration
-# 3. Client Management Functions
+# 2. Client Management Functions
 #		addFluidityClient
 #		removeFluidityClient
-# 4. Connection Management Functions
+# 3. Connection Management Functions
 #		addFluidityConnection
 #		removeFluidityConnection
 #		renewSSLcerts
-# 5. Fluidity Engine Functions
+# 4. Fluidity Engine Functions
 #		runFluidity
 #		stopFluidity
-# 6. Fluidity Connection Status Functions
+# 5. Fluidity Connection Status Functions
 #		showLinkStatus
-# 7. General Auxillary Functions
+# 6. General Auxillary Functions
 #		recallSSHidentity
 #		displaySerialDevices
 #		changeRemoteHostName
 #		findInterfaceFromIP
-# 9. Managing Internal Interfaces
+# 7. VPN Routing
+#		addServerRoute
+#		removeServerRoute
+#		addClientRoute
+#		removeClientRoute
+# 8. Managing Internal Interfaces
+#		setInternalInterface
+#		removeInternalInterface
+#
+# Client Functions
+#
+# 1. Prelimenary Client Configuration
+#		fluidityClientConfiguration
+# 2. Managing Internal Interfaces
 #		setInternalInterface
 #		removeInternalInterface
 
-# Program Structure
+
+# .Fluidity Complete Program Structure
 # 
 # 1. Fluidity Intershell Variables
 # 		setPingDelay
@@ -124,6 +138,7 @@
 #		6.2.1 Firewalling
 #			openPort
 #			closePort
+#			openTheTunnelInterfaces
 #			openTheLocalTunnelInterface
 #			openTheRemoteTunnelInterface
 #			closeTheLocalTunnelInterface
@@ -159,6 +174,15 @@
 #			checkIfTokenSlotFolderIsEmpty
 #			verifyThatSSLCertificatesExist
 #			doAClientServerMD5EquivalencyCheck
+#			doAClientServerSHA256EquivalencyCheck
+#		6.2.5 VPN Routing
+#			injectTheListOfFluidityConnectionRoutes
+#			injectTheListOfServerRoutes
+#			injectTheListOfClientRoutes
+#		6.2.6 Engine Reporting
+#			reportWhenLinkIsEstablished
+#			reportWhenFirewallRulesAreAdded
+#			reportWhenFirewallRulesAreRemoved 
 # 	6.3 Engine Auxillary Functions
 #		6.3.1 Public Functions
 #			forcePing
@@ -176,10 +200,28 @@
 #		checkFluidityFilesystemIntegrity
 #		checkLocalEntropy
 #		checkRemoteEntropy
+#		getNetstatConnectionStatus
+#		getTheRemotePort
+#		removeFluidityClientConfigInfoFromSSHConfig
 # 9. Managing Internal Interfaces
 # 	9.1 Public Functions
 #		setInternalInterface
 #		removeInternalInterface
+# 10. VPN Routing
+# 	10.1 Public Functions
+#		addServerRoute
+#		removeServerRoute
+#		addClientRoute
+#		removeClientRoute
+
+
+# Quickfind tags
+# 1. .Fluidity Flavour branching points: kzjFgtUz
+# 2. SSH calls to .Fluidity client system: heefhEKX
+# 3. SCP calls to .Fluidity client system: vvtSng7u
+
+# Grep tags
+# 1. Deduce the external interface IP from UFW SSH rule: HFBCvIa7h
 
 # 1. Fluidity Intershell Variables
 
@@ -188,7 +230,7 @@
 setPingDelay () {
    
    local SSH_ID=${1%.*}
-   echo "sed -i '1s/.*/$(echo ping_delay="$2")/' ~/Fluidity_Server/client.$SSH_ID/connection.$1/runtimeVars/ping_delay" | bash -
+   echo "sed -i '1s/.*/$(echo local ping_delay="$2")/' ~/Fluidity_Server/client.$SSH_ID/connection.$1/runtimeVars/ping_delay" | bash -
    
    
 }
@@ -197,8 +239,17 @@ setPingDelay () {
 getPingDelay () {
    
    local SSH_ID=${1%.*}
-   source ~/Fluidity_Server/client.$SSH_ID/connection.$1/runtimeVars/ping_delay
-   echo $ping_delay
+   
+   local FILE=$(eval echo ~$USER)'/Fluidity_Server/client.'$SSH_ID'/connection.'$1'/runtimeVars/ping_delay'
+   
+   # For an active connection.
+   if [ -f "$FILE" ]; then
+      source ~/Fluidity_Server/client.$SSH_ID/connection.$1/runtimeVars/ping_delay
+      echo $ping_delay
+   # For an inactive connection 
+   else
+      echo null
+   fi
    
 }
 
@@ -206,7 +257,7 @@ getPingDelay () {
 setAllowExecution () {
 
    local SSH_ID=${1%.*}
-   echo "sed -i '1s/.*/$(echo allow_execution="$2")/' ~/Fluidity_Server/client.$SSH_ID/connection.$1/runtimeVars/allow_execution" | bash -
+   echo "sed -i '1s/.*/$(echo local allow_execution="$2")/' ~/Fluidity_Server/client.$SSH_ID/connection.$1/runtimeVars/allow_execution" | bash -
 
 }
 
@@ -214,8 +265,17 @@ setAllowExecution () {
 getAllowExecution () {
 	
    local SSH_ID=${1%.*}
-   source ~/Fluidity_Server/client.$SSH_ID/connection.$1/runtimeVars/allow_execution
-   echo $allow_execution
+   
+   local FILE=$(eval echo ~$USER)'/Fluidity_Server/client.'$SSH_ID'/connection.'$1'/runtimeVars/allow_execution'
+   
+   # For an active connection.
+   if [ -f "$FILE" ]; then
+      source ~/Fluidity_Server/client.$SSH_ID/connection.$1/runtimeVars/allow_execution
+      echo $allow_execution
+   # For an inactive connection 
+   else
+      echo null
+   fi
 	
 }
 
@@ -223,16 +283,25 @@ getAllowExecution () {
 setPort () {
    
    local SSH_ID=${1%.*}
-   echo "sed -i '1s/.*/$(echo port="$2")/' ~/Fluidity_Server/client.$SSH_ID/connection.$1/runtimeVars/port" | bash -
+   echo "sed -i '1s/.*/$(echo local port="$2")/' ~/Fluidity_Server/client.$SSH_ID/connection.$1/runtimeVars/port" | bash -
 	
 }
 
 # GET function for Intershell Variable: port
 getPort () {
-	
+   
    local SSH_ID=${1%.*}
-   source ~/Fluidity_Server/client.$SSH_ID/connection.$1/runtimeVars/port
-   echo $port
+   
+   local FILE=$(eval echo ~$USER)'/Fluidity_Server/client.'$SSH_ID'/connection.'$1'/runtimeVars/port'
+   
+   # For an active connection.
+   if [ -f "$FILE" ]; then
+      source ~/Fluidity_Server/client.$SSH_ID/connection.$1/runtimeVars/port
+      echo $port
+   # For an inactive connection 
+   else
+      echo null
+   fi
    
 }
 
@@ -240,7 +309,7 @@ getPort () {
 setServerIsTerminated () {
 
    local SSH_ID=${1%.*}
-   echo "sed -i '1s/.*/$(echo server_is_terminated="$2")/' ~/Fluidity_Server/client.$SSH_ID/connection.$1/runtimeVars/server_is_terminated" | bash -
+   echo "sed -i '1s/.*/$(echo local server_is_terminated="$2")/' ~/Fluidity_Server/client.$SSH_ID/connection.$1/runtimeVars/server_is_terminated" | bash -
 	
 }
 
@@ -248,8 +317,17 @@ setServerIsTerminated () {
 getServerIsTerminated () {
 	
    local SSH_ID=${1%.*}
-   source ~/Fluidity_Server/client.$SSH_ID/connection.$1/runtimeVars/server_is_terminated
-   echo $server_is_terminated
+   
+   local FILE=$(eval echo ~$USER)'/Fluidity_Server/client.'$SSH_ID'/connection.'$1'/runtimeVars/server_is_terminated'
+   
+   # For an active connection.
+   if [ -f "$FILE" ]; then
+      source ~/Fluidity_Server/client.$SSH_ID/connection.$1/runtimeVars/server_is_terminated
+      echo $server_is_terminated
+   # For an inactive connection 
+   else
+      echo null
+   fi
    
 }
 
@@ -262,7 +340,7 @@ setClientIsTerminated () {
    # been terminated successfully.
    
    local SSH_ID=${1%.*}
-   echo "sed -i '1s/.*/$(echo client_is_terminated="$2")/' ~/Fluidity_Server/client.$SSH_ID/connection.$1/runtimeVars/client_is_terminated" | bash -
+   echo "sed -i '1s/.*/$(echo local client_is_terminated="$2")/' ~/Fluidity_Server/client.$SSH_ID/connection.$1/runtimeVars/client_is_terminated" | bash -
 	
 }
 
@@ -270,8 +348,17 @@ setClientIsTerminated () {
 getClientIsTerminated () {
 	
    local SSH_ID=${1%.*}
-   source ~/Fluidity_Server/client.$SSH_ID/connection.$1/runtimeVars/client_is_terminated
-   echo $client_is_terminated
+   
+   local FILE=$(eval echo ~$USER)'/Fluidity_Server/client.'$SSH_ID'/connection.'$1'/runtimeVars/client_is_terminated'
+   
+   # For an active connection.
+   if [ -f "$FILE" ]; then
+      source ~/Fluidity_Server/client.$SSH_ID/connection.$1/runtimeVars/client_is_terminated
+      echo $client_is_terminated
+   # For an inactive connection 
+   else
+      echo null
+   fi
    	
 }
 
@@ -279,7 +366,7 @@ getClientIsTerminated () {
 setSleepPid () {
 
    local SSH_ID=${1%.*}
-   echo "sed -i '1s/.*/$(echo sleep_pid="$2")/' ~/Fluidity_Server/client.$SSH_ID/connection.$1/runtimeVars/sleep_pid" | bash -
+   echo "sed -i '1s/.*/$(echo local sleep_pid="$2")/' ~/Fluidity_Server/client.$SSH_ID/connection.$1/runtimeVars/sleep_pid" | bash -
 
 }
 
@@ -287,8 +374,17 @@ setSleepPid () {
 getSleepPid () {
 	
    local SSH_ID=${1%.*}
-   source ~/Fluidity_Server/client.$SSH_ID/connection.$1/runtimeVars/sleep_pid
-   echo $sleep_pid
+   
+   local FILE=$(eval echo ~$USER)'/Fluidity_Server/client.'$SSH_ID'/connection.'$1'/runtimeVars/sleep_pid'
+   
+   # For an active connection.
+   if [ -f "$FILE" ]; then
+      source ~/Fluidity_Server/client.$SSH_ID/connection.$1/runtimeVars/sleep_pid
+      echo $sleep_pid
+   # For an inactive connection 
+   else
+      echo null
+   fi
 }
 
 
@@ -296,16 +392,25 @@ getSleepPid () {
 setTerminationForcePing () {
 
    local SSH_ID=${1%.*}
-   echo "sed -i '1s/.*/$(echo termination_force_ping="$2")/' ~/Fluidity_Server/client.$SSH_ID/connection.$1/runtimeVars/termination_force_ping" | bash -
+   echo "sed -i '1s/.*/$(echo local termination_force_ping="$2")/' ~/Fluidity_Server/client.$SSH_ID/connection.$1/runtimeVars/termination_force_ping" | bash -
 	
 }
 
 # GET function for Intershell Variable: termination_force_ping
 getTerminationForcePing () {
-	
+   
    local SSH_ID=${1%.*}
-   source ~/Fluidity_Server/client.$SSH_ID/connection.$1/runtimeVars/termination_force_ping
-   echo $termination_force_ping
+   
+   local FILE=$(eval echo ~$USER)'/Fluidity_Server/client.'$SSH_ID'/connection.'$1'/runtimeVars/termination_force_ping'
+   
+   # For an active connection.
+   if [ -f "$FILE" ]; then
+      source ~/Fluidity_Server/client.$SSH_ID/connection.$1/runtimeVars/termination_force_ping
+      echo $termination_force_ping
+   # For an inactive connection 
+   else
+      echo null
+   fi
 
 }
 
@@ -313,7 +418,7 @@ getTerminationForcePing () {
 setFluidityConnectionStatus () {
 
    local SSH_ID=${1%.*}
-   echo "sed -i '1s/.*/$(echo fluidity_connection_status="$2")/' ~/Fluidity_Server/client.$SSH_ID/connection.$1/runtimeVars/fluidity_connection_status" | bash -
+   echo "sed -i '1s/.*/$(echo local fluidity_connection_status="$2")/' ~/Fluidity_Server/client.$SSH_ID/connection.$1/runtimeVars/fluidity_connection_status" | bash -
 	
 }
 
@@ -527,6 +632,10 @@ EOF
 
    cd Fluidity_Server
    
+   # Enable IP forwarding after a potential reboot
+   
+   sudo sysctl -w net.ipv4.ip_forward=1
+   
 }
 
 
@@ -563,6 +672,9 @@ EOF
    # 6. (haveged OR rng-tools)
 
 fluidityServerConfiguration () {
+
+   # Enable Server IP forwarding
+   sudo sysctl -w net.ipv4.ip_forward=1
 
    # Check for Internet availability
    if [ "`ping -c 3 www.google.com`" ]; then
@@ -607,7 +719,7 @@ fluidityServerConfiguration () {
    # Display a no internet access message.
    else
       echo -e 'Warning. No Internet access.' \
-      '\nTo install the necessary utilities please connect to the Internet.'
+      '\nMain utilities installation cannot proceed without internet access.'
    fi
   
 }
@@ -831,6 +943,7 @@ fluidityClientConfiguration () {
    # 1. $server_IP_address
    # 2. $client_IP_address
    # 3. $client_username
+   # 4. $random_client_port (added in fluidityRemoteClientConfiguration)
 
 # Invokes functions:
 # 1. checkLocalEntropy, no args
@@ -936,6 +1049,12 @@ expect << EOF
       expect eof
 EOF
 
+   # Create an SSH configuration file, containing details for each
+   # SSH connection to .Fluidity clients.
+   echo -e 'Host '$3'\n'\
+   '  IdentityFile ~/.ssh/client.'$1 >> ~/.ssh/config
+
+   # heefhEKX
    # Add the remote machine to known hosts (x03 sends a Ctrl-C)
 expect << EOF
        spawn ssh $5@$3
@@ -960,9 +1079,9 @@ EOF
    # and store it in location:
    # ~/Fluidity_Server/client.[SSH_ID]/basic_client_info.txt
    echo -e \
-'server_IP_address='$2\
-'\nclient_IP_address='$3\
-'\nclient_username='$5\
+'local server_IP_address='$2\
+'\nlocal client_IP_address='$3\
+'\nlocal client_username='$5\
    > ~/Fluidity_Server/client.$1/basic_client_info.txt
    
    # Invoke function changeRemoteHostName to change client hostname
@@ -972,7 +1091,7 @@ EOF
    # Invoke fluidityRemoteClientConfiguration to
    # install Fluidity's essential programs and basic firewall
    # configuration to client machine.
-   fluidityRemoteClientConfiguration $3 $5 $2
+   fluidityRemoteClientConfiguration $3 $5 $2 $1
    
    # Invoke remoteSeekAndEncryptDaemonInstallation to
    # install FLdaemon_SeekAndEncrypt.service.
@@ -989,15 +1108,18 @@ EOF
    # 1. $server_IP_address
    # 2. $client_IP_address
    # 3. $client_username
+   # 4. $random_client_port
    
 # Intershell File Variables in use: NONE
 
 # Global Variables in use: NONE
 
 # Generates:
-# 1. Bash script (.sh):  genSCRIPT_eraseClientData.sh
+# 1. Bash script (.sh): genSCRIPT_eraseClientData.sh
 
-# Invokes Functions: NONE
+# Invokes Functions:
+# 1. removeFluidityClientConfigInfoFromSSHConfig, with args: 
+#  ($1) ($client_IP_address) ($random_client_port)
 
 # Calls the script:
 # 1. genSCRIPT_eraseClientData.sh, with args, $client_username, ($1), $server_IP_address
@@ -1010,6 +1132,7 @@ removeFluidityClient () {
       # 1. $server_IP_address
       # 2. $client_IP_address
       # 3. $client_username
+      # 4. $random_client_port
    source ~/Fluidity_Server/client.$1/basic_client_info.txt
    
    # Safety check 1: Check whether target client.[SSH_ID] already exists.
@@ -1088,12 +1211,17 @@ removeFluidityClient () {
 '   fi\n'\
 '   \n'\
 '   # SECTION 2.4: Set sshd_config to default policies\n'\
+'   echo "sudo sed -i '"'"'13s/.*/$(echo \#Port 22)/'"'"' /etc/ssh/sshd_config" | bash -\n'\
 '   echo "sudo sed -i '"'"'34s/.*/$(echo \#MaxAuthTries 6)/'"'"' /etc/ssh/sshd_config" | bash -\n'\
 '   echo "sudo sed -i '"'"'35s/.*/$(echo \#MaxSessions 10)/'"'"' /etc/ssh/sshd_config" | bash -\n'\
 '   echo "sudo sed -i '"'"'56s/.*/$(echo \#PasswordAuthentication yes)/'"'"' /etc/ssh/sshd_config" | bash -\n'\
-'   ( sleep 20 ; sudo service ssh restart ) &\n'\
+'   # SECTION 2.4: Sleep for 5 seconds before restarting the ssh service.\n'\
+'   ( sleep 5 ; sudo service ssh restart ) &\n'\
 '   \n'\
-'   # SECTION 2.5 (Return message to server and Safety Check 3):\n'\
+'   # SECTION 2.5: Firewall (UFW) manipulations.\n'\
+'   # SECTION 2.5: Sleep for 6 seconds. Then, purge UFW rules. Reset UFW to accept SSH connections from any IP.\n'\
+'   ( sleep 6 ; echo "y" | sudo ufw reset ; sudo ufw enable ; sudo ufw allow ssh ) &\n'\
+'   # SECTION 2.6: (Return message to server and Safety Check 3):\n'\
 '   # Scan the ~/.ssh/authorized_keys file for the "SSH remote connection"\n'\
 '   # addFluidityClient message. If the message is detected return to\n'\
 '   # server a SUCCESS signal and revoke the SSH passwordless access rights \n'\
@@ -1116,12 +1244,12 @@ removeFluidityClient () {
    
    rm ~/Fluidity_Server/Generated_Scripts/genSCRIPT_eraseClientData.sh
    
-   echo -e \
+      echo -e \
 '\n'\
-'# SECTION 1 (Safety check 1): Scan this client machine for any active\n'\
+'# SECTION 1 (Safety check 1): Scan the client machine for active\n'\
 '# SOCAT connections. If an active connection is detected make\n'\
-'# $do_not_proceed=1, if not make do_not_proceed=0 and output the\n'\
-'# connections found active.\n'\
+'# $do_not_proceed=1, if not, make do_not_proceed=0 and output the\n'\
+'# connection that was found active.\n'\
 'folder_counter=1\n'\
 'do_not_proceed=0\n'\
 '\n'\
@@ -1139,9 +1267,9 @@ removeFluidityClient () {
 'done\n'\
 '\n'\
 '# SECTION 2: Based upon the outcome of the previous section, if\n'\
-'# do_not_proceed=0, then carry on with the set of operations necessary\n'\
-'# for client removal. Else, print a message that concludes the outcome\n'\
-'# of SECTION 1.\n'\
+'# do_not_proceed=0, then proceed to client removal.\n'\
+'# Else, print a message that concludes the list of connections\n'\
+'# found active from in SECTION 1.\n'\
 'if [[ $do_not_proceed == 0 ]]; then\n'\
 '   \n'\
 '   # SECTION 2.1: Unistall FLdaemon_SeekAndEncrypt\n'\
@@ -1150,7 +1278,7 @@ removeFluidityClient () {
 '   sudo rm /etc/systemd/system/FLdaemon_SeekAndEncrypt.service\n'\
 '   \n'\
 '   # SECTION 2.2 (Safety check 2): Unmount (i.e. decrypt) any \n'\
-'   # remaining encrypted folders.\n'\
+'   # possible remaining encrypted folders.\n'\
 '   folder_counter=1\n'\
 '   \n'\
 '   while [[ -e /home/'$client_username'/Fluidity_Client/connection.'$1'.$folder_counter ]]; do\n'\
@@ -1160,26 +1288,31 @@ removeFluidityClient () {
 '   \n'\
 '   # SECTION 2.3: Remove the main fluidity client folder.\n'\
 '   rm -r ~/Fluidity_Client\n'\
-'   # SECTION 2.3: Change the client hostname to generic "blank"\n'\
+'   # SECTION 2.3: Change client hostname to generic "blank"\n'\
 '   sudo hostnamectl set-hostname "blank"\n'\
-'   # SECTION 2.3: Remove any information about possible known hosts\n'\
-'   # (it should contain only the SSH connection to fluidity server.)\n'\
+'   # SECTION 2.3: Remove the public SSH key pointing to Fluidity server\n'\
+'   # (it should contain only the connection to Fluidity server!)\n'\
 '   if [ -f ~/.ssh/known_hosts ]; then\n'\
 '      ssh-keygen -R '$server_IP_address'\n'\
 '      rm ~/.ssh/known_hosts.old\n'\
 '   fi\n'\
 '   \n'\
 '   # SECTION 2.4: Set sshd_config to default policies\n'\
+'   echo "sudo sed -i '"'"'13s/.*/$(echo \#Port 22)/'"'"' /etc/ssh/sshd_config" | bash -\n'\
 '   echo "sudo sed -i '"'"'34s/.*/$(echo \#MaxAuthTries 6)/'"'"' /etc/ssh/sshd_config" | bash -\n'\
 '   echo "sudo sed -i '"'"'35s/.*/$(echo \#MaxSessions 10)/'"'"' /etc/ssh/sshd_config" | bash -\n'\
 '   echo "sudo sed -i '"'"'56s/.*/$(echo \#PasswordAuthentication yes)/'"'"' /etc/ssh/sshd_config" | bash -\n'\
-'   ( sleep 20 ; sudo service ssh restart ) &\n'\
+'   # SECTION 2.4: Sleep for 5 seconds before restarting the ssh service.\n'\
+'   ( sleep 5 ; sudo service ssh restart ) &\n'\
 '   \n'\
-'   # SECTION 2.5 (Return message and do safety check 3):\n'\
-'   # Scan ~/.ssh/authorized_keys for the "SSH remote connection"\n'\
+'   # SECTION 2.5: Firewall (UFW) manipulations.\n'\
+'   # SECTION 2.5: Sleep for 6 seconds. Then, purge UFW rules. Reset UFW to accept SSH connections from any IP.\n'\
+'   ( sleep 6 ; echo "y" | sudo ufw reset ; sudo ufw enable ; sudo ufw allow ssh ) &\n'\
+'   # SECTION 2.6: (Return message to server and Safety Check 3):\n'\
+'   # Scan the ~/.ssh/authorized_keys file for the "SSH remote connection"\n'\
 '   # addFluidityClient message. If the message is detected return to\n'\
-'   # server a SUCCESS signal and remove the line offering SSH \n'\
-'   # passwordless access to the former Fluidity client.\n'\
+'   # server a SUCCESS signal and revoke the SSH passwordless access rights \n'\
+'   # to Fluidity server.\n'\
 '   if cat ~/.ssh/authorized_keys | grep "SSH remote connection to Fluidity client '$1'"; then\n'\
 '      echo "genSCRIPT_eraseClientData.sh reports SUCCESS"\n'\
 '      sed -i '"'"'/SSH remote connection to Fluidity client '$1''"'"'/d' ~/.ssh/authorized_keys'\n'\
@@ -1197,6 +1330,7 @@ removeFluidityClient () {
    # Used to store the outcome from genSCRIPT_eraseClientData.sh
    local eraseClientData_outcome
    
+   # heefhEKX
    # First, SSH remotely execute genSCRIPT_eraseClientData.sh and, then,
    # save the outcome into $eraseClientData_outcome.
    eraseClientData_outcome=$(ssh $client_username@$client_IP_address \
@@ -1224,9 +1358,18 @@ removeFluidityClient () {
       # Delete all the client data.
       rm -r ~/Fluidity_Server/client.$1
       
+      # Delete the remaining vault connections data.
+      rm -r ~/Fluidity_Server/SSL_Cert_Vault/client_con.$1.*
+      rm -r ~/Fluidity_Server/SSL_Cert_Vault/server_con.$1.*
+      
       # Remove the former Fluidity client from ~/.ssh/known_hosts.
       ssh-keygen -R $client_IP_address
       rm ~/.ssh/known_hosts.old
+      
+      # Update the .ssh/config by removing the specific client 
+      # information from it.
+      # Invoke removeFluidityClientConfigInfoFromSSHConfig
+      removeFluidityClientConfigInfoFromSSHConfig $1 $client_IP_address $random_client_port
       
       # Display an operation success message.
       echo "Client $1 removed successfully."
@@ -1240,6 +1383,9 @@ removeFluidityClient () {
       
    fi
    
+   # Guard interval in case an addFluidityClient follows for the same client.
+   sleep 6
+   
    
 }
 
@@ -1252,6 +1398,7 @@ removeFluidityClient () {
 # $1: Client IP.
 # $2: Client Username.
 # $3: Server IP.
+# $4: SSH ID
 
 # Sourced Variables: NONE
 
@@ -1261,7 +1408,8 @@ removeFluidityClient () {
 
 # Generates:
 # 1. Bash script (.sh): genSCRIPT_fluidityRemoteClientConfiguration.sh
-# 2. Bash script (.sh): genSCRIPT_fluidityRemoteClientFirewallConfiguration.sh
+# 2. Bash script (.sh): genSCRIPT_fluidityRemoteClientSSHConfiguration.sh
+# 3. Bash script (.sh): genSCRIPT_fluidityRemoteClientFirewallConfiguration.sh
 
 # Invokes Functions: NONE
 
@@ -1292,6 +1440,12 @@ fluidityRemoteClientConfiguration () {
 
 local $entropy_source_user_choice
 
+local random_ssh_port=$(shuf -i 49152-65535 -n 1)
+
+# Add the random port number to basic_client_info.txt
+echo -e 'local random_client_port='$random_ssh_port >> \
+ ~/Fluidity_Server/client.$4/basic_client_info.txt
+
 while true; do 
    echo "Fluidity requires a high quality entropy source"\
     && echo "Which utility do you prefer to choose?"\
@@ -1306,7 +1460,6 @@ while true; do
          * ) echo "1 for Haveged, 2 for rng-tools";; 
       esac 
 done 
- 
  
    if [[ ! -e ~/Fluidity_Server/Generated_Scripts/genSCRIPT_fluidityRemoteClientConfiguration.sh ]]; then
    
@@ -1346,12 +1499,35 @@ done
       '\n   echo "Haveged is already installed"'\
       '\nelif [ -x "$(command -v rngd)" ]; then'\
       '\n   echo "rng-tools are already installed"'\
-      '\nfi'\
-      '\necho "sudo sed -i '"'"'35s/.*/$(echo \#MaxSessions 2)/'"'"' /etc/ssh/sshd_config" | bash -'\
-      '\necho "sudo sed -i '"'"'56s/.*/$(echo \#PasswordAuthentication no)/'"'"' /etc/ssh/sshd_config" | bash -'\
-      '\nsudo service ssh restart' > \
+      '\nfi' > \
       ~/Fluidity_Server/Generated_Scripts/genSCRIPT_fluidityRemoteClientConfiguration.sh
       chmod 700 ~/Fluidity_Server/Generated_Scripts/genSCRIPT_fluidityRemoteClientConfiguration.sh
+      
+   fi
+   
+   if [[ ! -e ~/Fluidity_Server/Generated_Scripts/genSCRIPT_fluidityRemoteClientSSHConfiguration.sh ]]; then
+   
+      echo -e \
+       'echo "sudo sed -i '"'"'13s/.*/$(echo Port '$random_ssh_port')/'"'"' /etc/ssh/sshd_config" | bash -'\
+      '\necho "sudo sed -i '"'"'34s/.*/$(echo MaxAuthTries 1)/'"'"' /etc/ssh/sshd_config" | bash -'\
+      '\necho "sudo sed -i '"'"'35s/.*/$(echo MaxSessions 2)/'"'"' /etc/ssh/sshd_config" | bash -'\
+      '\necho "sudo sed -i '"'"'56s/.*/$(echo PasswordAuthentication no)/'"'"' /etc/ssh/sshd_config" | bash -'\
+      '\n(sleep 2 && sudo service ssh restart) &'\
+      '\necho "y" | sudo ufw delete allow ssh' > \
+      ~/Fluidity_Server/Generated_Scripts/genSCRIPT_fluidityRemoteClientSSHConfiguration.sh
+      chmod 700 ~/Fluidity_Server/Generated_Scripts/genSCRIPT_fluidityRemoteClientSSHConfiguration.sh
+      
+   else
+      
+      echo -e \
+       'echo "sudo sed -i '"'"'13s/.*/$(echo Port '$random_ssh_port')/'"'"' /etc/ssh/sshd_config" | bash -'\
+      '\necho "sudo sed -i '"'"'34s/.*/$(echo MaxAuthTries 1)/'"'"' /etc/ssh/sshd_config" | bash -'\
+      '\necho "sudo sed -i '"'"'35s/.*/$(echo MaxSessions 2)/'"'"' /etc/ssh/sshd_config" | bash -'\
+      '\necho "sudo sed -i '"'"'56s/.*/$(echo PasswordAuthentication no)/'"'"' /etc/ssh/sshd_config" | bash -'\
+      '\n(sleep 2 && sudo service ssh restart) &'\
+      '\necho "y" | sudo ufw delete allow ssh' > \
+      ~/Fluidity_Server/Generated_Scripts/genSCRIPT_fluidityRemoteClientSSHConfiguration.sh
+      chmod 700 ~/Fluidity_Server/Generated_Scripts/genSCRIPT_fluidityRemoteClientSSHConfiguration.sh
       
    fi
       
@@ -1376,7 +1552,8 @@ EOF
             
             sudo ufw default allow outgoing
             sudo ufw default deny incoming
-            sudo ufw allow from $3 to any port 22 proto tcp
+            
+            sudo ufw allow from $3 to any port $random_ssh_port proto tcp comment "HFBCvIa7h $1"
             
             sudo ufw status
             
@@ -1400,7 +1577,8 @@ EOF
             
             sudo ufw default allow outgoing
             sudo ufw default deny incoming
-            sudo ufw allow from $3 to any port 22 proto tcp
+            
+            sudo ufw allow from $3 to any port $random_ssh_port proto tcp comment "HFBCvIa7h $1"
             
             sudo ufw status
             
@@ -1411,16 +1589,28 @@ END_CAT
       
    else
       
-      echo "sed -i '14s/.*/$(echo sudo ufw allow from $3 to any port 22 proto tcp)/' ~/Fluidity_Server/Generated_Scripts/genSCRIPT_fluidityRemoteClientFirewallConfiguration.sh" | bash -
-      echo "sed -i '33s/.*/$(echo sudo ufw allow from $3 to any port 22 proto tcp)/' ~/Fluidity_Server/Generated_Scripts/genSCRIPT_fluidityRemoteClientFirewallConfiguration.sh" | bash -
+      echo "sed -i '20s/.*/$(echo sudo ufw allow from $3 to any port $random_ssh_port proto tcp comment "\""HFBCvIa7h $1"\"")/' ~/Fluidity_Server/Generated_Scripts/genSCRIPT_fluidityRemoteClientFirewallConfiguration.sh" | bash -
+      echo "sed -i '45s/.*/$(echo sudo ufw allow from $3 to any port $random_ssh_port proto tcp comment "\""HFBCvIa7h $1"\"")/' ~/Fluidity_Server/Generated_Scripts/genSCRIPT_fluidityRemoteClientFirewallConfiguration.sh" | bash -
       
    fi
    
+   # heefhEKX
    # SSH remotely execute genSCRIPT_fluidityRemoteClientConfiguration.sh
    ssh $2@$1 'bash -s' < ~/Fluidity_Server/Generated_Scripts/genSCRIPT_fluidityRemoteClientConfiguration.sh $entropy_source_user_choice
    
+   # heefhEKX
    # SSH remotely execute genSCRIPT_fluidityRemoteClientFirewallConfiguration.sh
    ssh $2@$1 'bash -s' < ~/Fluidity_Server/Generated_Scripts/genSCRIPT_fluidityRemoteClientFirewallConfiguration.sh
+
+   # heefhEKX
+   # SSH remotely execute genSCRIPT_fluidityRemoteClientSSHConfiguration
+   ssh $2@$1 'bash -s' < ~/Fluidity_Server/Generated_Scripts/genSCRIPT_fluidityRemoteClientSSHConfiguration.sh
+   
+   # Add the random port number to .shh/config.
+   # From this point on, every ssh connection to this client will
+   # use this specific port number.
+   echo "   Port $random_ssh_port" >> ~/.ssh/config
+
    
 }
 
@@ -1571,6 +1761,10 @@ remoteSeekAndEncryptDaemonInstallation () {
       
       sudo echo -e \
         '#!/bin/bash'\
+      '\n'\
+      '\n# Turn IPv4 forwarding ON'\
+      '\nsysctl -w net.ipv4.ip_forward=1'\
+      '\n'\
       '\nwhile true; do'\
       '\n'\
       '\n      # For every file contained in the Fluidity_Client folder:'\
@@ -1659,6 +1853,10 @@ remoteSeekAndEncryptDaemonInstallation () {
       # Daemon script explained in detail above.
       sudo echo -e \
         '#!/bin/bash'\
+      '\n'\
+      '\n# Turn IPv4 forwarding ON'\
+      '\nsysctl -w net.ipv4.ip_forward=1'\
+      '\n'\
       '\nwhile true; do'\
       '\n'\
       '\n      # For every file contained in the Fluidity_Client folder:'\
@@ -1778,6 +1976,7 @@ remoteSeekAndEncryptDaemonInstallation () {
       
    fi
 
+   # vvtSng7u
    # Securely copy FLdaemon_SeekAndEncrypt.sh and 
    # FLdaemon_SeekAndEncrypt.service to client machine.
    scp ~/Fluidity_Server/Generated_Scripts/FLdaemon_SeekAndEncrypt.sh \
@@ -1804,6 +2003,7 @@ remoteSeekAndEncryptDaemonInstallation () {
       
    fi
    
+   # heefhEKX
    # SSH remotely execute genSCRIPT_moveFilesAndActivateDaemon.sh
    ssh $2@$1 'bash -s' < ~/Fluidity_Server/Generated_Scripts/genSCRIPT_moveFilesAndActivateDaemon.sh
 
@@ -1823,6 +2023,7 @@ remoteSeekAndEncryptDaemonInstallation () {
    # 1. $server_IP_address
    # 2. $client_IP_address
    # 3. $client_username
+   # 4. $random_client_port
    
 # Intershell File Variables in use: NONE
 
@@ -1844,6 +2045,7 @@ addFluidityConnection () {
       # 1. $server_IP_address
       # 2. $client_IP_address
       # 3. $client_username
+      # 4. $random_client_port
    source ~/Fluidity_Server/client.$1/basic_client_info.txt
    
    # Safety check 1: Check whether target connection.[SSH_ID.SSL_ID] 
@@ -1893,6 +2095,7 @@ addFluidityConnection () {
    # 1. $server_IP_address
    # 2. $client_IP_address
    # 3. $client_username
+   # 4. $random_client_port
 
 # Intershell File Variables in use: NONE
 
@@ -1920,6 +2123,7 @@ removeFluidityConnection () {
       # 1. $server_IP_address
       # 2. $client_IP_address
       # 3. $client_username
+      # 4. $random_client_port
    source ~/Fluidity_Server/client.$1/basic_client_info.txt
 
    # Purge the Connection ID ($1) folder in ~/Fluidity_Server 
@@ -1928,10 +2132,12 @@ removeFluidityConnection () {
 	~/Fluidity_Server/SSL_Cert_Vault/client_con.$1.$2 \
 	~/Fluidity_Server/SSL_Cert_Vault/server_con.$1.$2
 
+   # heefhEKX
    # SSH remotely execute 
 	# Unmount from ecryptfs the corresponding client folder.
    ssh $client_username@$client_IP_address sudo umount Fluidity_Client/connection.$1.$2
    
+   # heefhEKX
    # SSH remotely execute 
    # Erase the client folder.
    ssh $client_username@$client_IP_address rm -r ~/Fluidity_Client/connection.$1.$2
@@ -1957,6 +2163,7 @@ removeFluidityConnection () {
    # 1. $server_IP_address
    # 2. $client_IP_address
    # 3. $client_username
+   # 4. $random_client_port
 
 # Intershell File Variables in use: NONE
 
@@ -1969,8 +2176,9 @@ removeFluidityConnection () {
 # 1. recallSSHidentity, with args: ($1)
 # 2. checkForConnectionFolderAndDecrypt, with args: ($1) ($2) 
 #  $(client_IP_address) ($client_username)
-# 3. activeLinkInternalSSLrenew, with args: ($1) ($2)
-# 4. inactiveLinkInternalSSLrenew, with args: ($1) ($2)
+# 3. getNetstatConnectionStatus, with args: ($server_listening_port)
+# 4. activeLinkInternalSSLrenew, with args: ($1) ($2)
+# 5. inactiveLinkInternalSSLrenew, with args: ($1) ($2)
 
 # Calls the script: NONE
 
@@ -2018,19 +2226,10 @@ renewSSL () {
          # 9. $fluidity_flavour_choice
       source ~/Fluidity_Server/client.$1/connection.$1.$2/link_information.txt
       
-      # Use netstat with grep to extract active link's connection 
-      # status. Then, use $netstat_connection_status_string
-      # to store the outcome.
-      local netstat_connection_status_string=$(netstat -atnp 2>/dev/null | grep $server_listening_port)
-   
-      # Use the result from $netstat_connection_status_string, combined 
-      # with cut (whitespace delimeter - sixth element), to isolate the 
-      # connection state information from the targeted connection.
-      local netstat_connection_status=$(echo $netstat_connection_status_string| cut -d' ' -f 6)
       
       # Good scenario: Netstat reports that connection.[SSH_ID.SSL_ID]
       # is "ESTABLISHED" AND Fluidity is in "ACTIVE" state.
-      if [ $netstat_connection_status == "ESTABLISHED" ] && \
+      if [ $(getNetstatConnectionStatus $server_listening_port) == "ESTABLISHED" ] && \
       [ $(getFluidityConnectionStatus $fluidity_connection_ID) == "ACTIVE" ]; then
          # Information message: Report to user that Fluidity will be 
          # paused and resumed in order to perform SSL substitution.
@@ -2072,6 +2271,7 @@ renewSSL () {
          # 1. $server_IP_address
          # 2. $client_IP_address
          # 3. $client_username
+         # 4. $random_client_port
       source ~/Fluidity_Server/client.$1/basic_client_info.txt
       
       # Safety check 1: Check whether target client.[SSH_ID] responds to 
@@ -2125,6 +2325,7 @@ renewSSL () {
    # 1. $server_IP_address
    # 2. $client_IP_address
    # 3. $client_username
+   # 4. $random_client_port
 
 # Intershell File Variables in use: NONE
 
@@ -2153,6 +2354,7 @@ inactiveLinkInternalSSLrenew () {
       # 1. $server_IP_address
       # 2. $client_IP_address
       # 3. $client_username
+      # 4. $random_client_port
    source ~/Fluidity_Server/client.$SSH_ID/basic_client_info.txt
    
    # invoke copyDoNotEncryptToken
@@ -2160,7 +2362,7 @@ inactiveLinkInternalSSLrenew () {
    copyDoNotEncryptToken $1 $client_IP_address $client_username
          
    # invoke reinstallSSLcerts
-   # Reinstall the SSL certificates for target connection 
+   # Reinstall the SSL certificates for target connection to folder
    # connection.[SSH_ID.SSL_ID]
    reinstallSSLcerts $1 $client_IP_address $client_username $server_IP_address
       
@@ -2267,6 +2469,7 @@ activeLinkInternalSSLrenew () {
       # Re-establish the SOCAT link. Based on link_information.txt
       # start Fluidity with the proper Fluidity flavour choice.
       
+      # kzjFgtUz
       # For a Serial link
       if [[ "$fluidity_flavour_choice" == -s ]]; then
    
@@ -2477,6 +2680,7 @@ EOF
    c_password.$1.txt hashed_clientpass_con.$1.txt encr_password.$1.txt \
    c_bogus_password.$1.txt ~/Fluidity_Server/client.$SSH_ID/connection.$1
 
+   # vvtSng7u
    # SSH copy the corresponding *.crt 
    # file to client machine
    scp servercon.$1.crt \
@@ -2656,6 +2860,7 @@ EOF
    c_password.$1.txt hashed_clientpass_con.$1.txt \
    c_bogus_password.$1.txt ~/Fluidity_Server/client.$SSH_ID/connection.$1
 
+   # vvtSng7u
    # SSH copy the corresponding *.crt 
    # file to client machine
    scp servercon.$1.crt \
@@ -2728,6 +2933,7 @@ clientFolderCreation () {
    
    fi
    
+   # heefhEKX
    # SSH remotely execute genSCRIPT_clientFolderCreation.sh
    ssh $4@$3 'bash -s' < ~/Fluidity_Server/Generated_Scripts/genSCRIPT_clientFolderCreation.sh \
 	$1 $2
@@ -2805,13 +3011,16 @@ clientSSLinstallation () {
    
    fi
    
+   # heefhEKX
    # SSH remotely execute genSCRIPT_clientSSLinstallation.sh
    ssh $4@$3 'bash -s' < ~/Fluidity_Server/Generated_Scripts/genSCRIPT_clientSSLinstallation.sh \
 	$1 $2 $3
 
+   # vvtSng7u
    # Fetch the client SSL certificates from the remote machine.
    scp $4@$3:Fluidity_Client/connection.$1/clientcon.$1.crt \
     ~/Fluidity_Server
+   # vvtSng7u
    scp $4@$3:Fluidity_Client/connection.$1/clientcon.$1.pem \
     ~/Fluidity_Server
 
@@ -2825,6 +3034,7 @@ clientSSLinstallation () {
    # 1. $server_IP_address
    # 2. $client_IP_address
    # 3. $client_username
+   # 4. $random_client_port
 
 # Intershell File Variables in use: NONE
 
@@ -2851,6 +3061,7 @@ deleteSSLpair () {
       # 1. $server_IP_address
       # 2. $client_IP_address
       # 3. $client_username
+      # 4. $random_client_port
    source ~/Fluidity_Server/client.$SSH_ID/basic_client_info.txt
    
    # Erase the passwords and credentials related to a generated SSL
@@ -2880,6 +3091,7 @@ deleteSSLpair () {
       
    fi
    
+   # heefhEKX
    # SSH remotely execute genSCRIPT__deleteClientSSLpair.sh
    ssh $client_username@$client_IP_address \
     'bash -s' < ~/Fluidity_Server/Generated_Scripts/genSCRIPT__deleteClientSSLpair.sh $1
@@ -2927,9 +3139,11 @@ copyDoNotEncryptToken() {
       
    fi
    
+   # heefhEKX
    # SSH remotely execute genSCRIPT_purgeDoNotEncryptToken.sh
    ssh $3@$2 'bash -s' < ~/Fluidity_Server/Generated_Scripts/genSCRIPT_purgeDoNotEncryptToken.sh $1
    
+   # vvtSng7u
    # Securely copy do_not_encrypt_token to target Fluidity client in
    # folder ~/Fluidity_Client/connection.[SSH_ID.SSL_ID]/tokenSlot
    scp ~/Fluidity_Server/client.$SSH_ID/do_not_encrypt_token/* \
@@ -2976,6 +3190,7 @@ deleteDoNotEncryptToken () {
       
    fi
    
+   # heefhEKX
    # SSH remotely execute genSCRIPT_purgeDoNotEncryptToken.sh
    ssh $3@$2 'bash -s' < ~/Fluidity_Server/Generated_Scripts/genSCRIPT_purgeDoNotEncryptToken.sh $1
    
@@ -3002,6 +3217,7 @@ deleteDoNotEncryptToken () {
    # 1. $server_IP_address
    # 2. $client_IP_address
    # 3. $client_hostname
+   # 4. $random_client_port
 
 # Intershell File Variables in use: NONE
 
@@ -3010,19 +3226,16 @@ deleteDoNotEncryptToken () {
 # Generates: Nothing
  
 # Invokes Functions:
-# 1. inactiveLinkInternalSSLrenew, with args: ($2) ($3)
-# 2. destroyRunTimeVars, with args: ($2) ($3)
-# 3. deleteSOCATlinkStateInformation, with args: ($2) ($3)
-# 4. checkForConnectionFolderAndDecrypt, with args: ($2) ($3) 
+# 1. getNetstatConnectionStatus, with args: ($4)
+# 2. inactiveLinkInternalSSLrenew, with args: ($2) ($3)
+# 3. destroyRunTimeVars, with args: ($2) ($3)
+# 4. deleteSOCATlinkStateInformation, with args: ($2) ($3)
+# 5. checkForConnectionFolderAndDecrypt, with args: ($2) ($3) 
 #     ($client_IP_address) ($client_username)
-# 5. recallSSHidentity, with args: ($2)
-# 6. openPort, with args: ($4)
+# 6. recallSSHidentity, with args: ($2)
 # 7. establishSOCATlink, with args: ($2), ($3), ($5), ($4), ($6), 
 #    ($client_IP_address), ($client_username), ($7), 
 #     ($server_IP_address), ($1)
-# 8. openTheLocalTunnelInterface, with args: ($5)
-# 9. openTheRemoteTunnelInterface, with args: ($client_IP_address),
-#    ($client_hostname), ($6)
 
 # Calls the script: NONE
 
@@ -3030,33 +3243,39 @@ deleteDoNotEncryptToken () {
 
 runFluidity () {
    
+   
+   # Safety check 1: Verify that the total number arguments are no less than 7.
+   if [ "$#" -ne 7 ]; then
+      echo "Illegal number of parameters"
+      return
+   fi
+   
+   # kzjFgtUz
+   # Safety check 2: Argument $1 only -s or -t
+   if ! [[ $1 == "-s" || $1 == "-t" ]]; then
+      echo -e "Acceptable values \"-s\" SERIAL or \"-t\" TUNNEL."
+      return
+   fi
+   
    # Import the following set of variables:
       # 1. $server_IP_address
       # 2. $client_IP_address
       # 3. $client_username
+      # 4. $random_client_port
    source ~/Fluidity_Server/client.$2/basic_client_info.txt
    
-   # Use netstat and pipe the output to grep. According to
-   # $server_listening_port grep the line referring to that specific 
-   # port and save it to $netstat_connection_status_string.
-   local netstat_connection_status_string=$(netstat -atnp 2>/dev/null | grep $4)
-   
-   # Use cut to compartmentalize the line. Fetch the sixth element. Use
-   # the whitespace ' ' delimeter character. Save the result
-   # to $netstat_connection_status.
-   local netstat_connection_status=$(echo $netstat_connection_status_string| cut -d' ' -f 6)
-   
-   # Safety check 1: Check whether targer connection exists.
+   # Safety check 3: Check whether targer connection exists.
    if [ ! -d ~/Fluidity_Server/client.$2/connection.$2.$3 ]; then
       # Information message to user.
       echo "No such link exists"
       return
    fi
    
-   # Safety check 2: Check whether target Fluidity connection is
+   # kzjFgtUz
+   # Safety check 4: Check whether target Fluidity connection is
    # ACTIVE. If not, then take the precautionary step to delete any
    # state information file, caused from an adnormal shutdown.
-   if [[ "$netstat_connection_status" == ESTABLISHED ]]\
+   if [[ $(getNetstatConnectionStatus $4) == "ESTABLISHED" ]]\
     && [ -f ~/Fluidity_Server/client.$2/connection.$2.$3/link_information.txt ]; then
       if [[ "$1" == -s ]] && lsof | grep -e $5; then
          # Information message to user.
@@ -3108,17 +3327,16 @@ runFluidity () {
       
    fi
    
-   
-   # Safety check 3: Check whether another ACTIVE link exists with
+   # Safety check 5: Check whether another ACTIVE link exists with
    # the same port.
-   if netstat -atnp | grep $4; then
+   if netstat -atnp 2>/dev/null | grep $4; then
       # Information message to user.
       echo "Server port is used by another resource. Please use another port."
       return
    fi
    
-      
-   # Safety check 4: Check whether the server IP address or server Serial 
+   # kzjFgtUz
+   # Safety check 6: Check whether the server IP address or server Serial 
    # device is already in use
    if ifconfig | grep $5 || lsof | grep -e $5; then
       if [[ "$1" == -s ]]; then
@@ -3133,7 +3351,8 @@ runFluidity () {
       return
    fi
    
-   # Safety check 5: Check whether target client IP address is already 
+   # kzjFgtUz
+   # Safety check 7: Check whether target client IP address is already 
    # in use.
    if ifconfig | grep $6; then
       if [[ "$1" == -t ]]; then
@@ -3152,6 +3371,9 @@ runFluidity () {
       # Recall the missing identity.
       recallSSHidentity $2
       
+      # Message to user
+      echo "Fluidity client identity $2 loaded in keyring."
+      
    else
       
       # Message to user.
@@ -3159,29 +3381,9 @@ runFluidity () {
       
    fi
    
-   # Invoke openPort
-   # Allow traffic through the designated port.
-   openPort $4
-   
-   # Report to user the current ufw status for the specific port.
-   sudo ufw status verbose | grep -e $4
-   
    # Invoke establishSOCATlink
    establishSOCATlink $2.$3 $5 $4 $6 $client_IP_address $client_username $7 $server_IP_address $1
-   
-   # For Fluidity -t
-   # Allow traffic through the tunnel interfaces in both the local and
-   # the remote machine.
-   if [[ "$1" == -t ]]; then
-   
-      # Invoke openTheLocalTunnelInterface
-      openTheLocalTunnelInterface $5
-      # Invoke openTheRemoteTunnelInterface
-      openTheRemoteTunnelInterface $2 $6
-      
-   fi
-   
-   
+
 }
 
 # Arguments: ($1)
@@ -3225,12 +3427,14 @@ runFluidity () {
 # Generates: Nothing
 
 # Invokes Functions:
-# 1. closeTheLocalTunnelInterface, with args: ($server_tunnel_ip)
-# 2. closeTheRemoteTunnelInterface, with args: ($1), ($client_tunnel_ip)
-# 3. terminationForcePing, with args: ($1)
-# 4. destroyRunTimeVars, with args: ($1)
-# 5. deleteSOCATlinkStateInformation, with args: ($1)
-# 6. closePort, with args: $port
+# 1. getNetstatConnectionStatus, with args: ($port)
+# 2. getTheRemotePort, with args: ($port)
+# 2. closeTheLocalTunnelInterface, with args: ($server_tunnel_ip)
+# 3. closeTheRemoteTunnelInterface, with args: ($1), ($client_tunnel_ip)
+# 4. terminationForcePing, with args: ($1)
+# 5. destroyRunTimeVars, with args: ($1)
+# 6. deleteSOCATlinkStateInformation, with args: ($1)
+# 7. closePort, with args: $port
 
 # Calls the script: NONE
 
@@ -3285,17 +3489,6 @@ stopFluidity () {
       source ~/Fluidity_Server/client.$1/connection.$1.$2/link_information.txt
    fi
 
-   # For Fluidity -t
-   # Close the corresponding client and server tunnel interfaces.
-   if [[ "$fluidity_flavour_choice" == -t ]]; then
-   
-      # Invoke closeTheLocalTunnelInterface
-      closeTheLocalTunnelInterface $server_tunnel_ip
-      # Invoke closeTheRemoteTunnelInterface
-      closeTheRemoteTunnelInterface $1 $client_tunnel_ip
-      
-   fi
-
    # Fluidity Finite State Machine 
    # State change to: TERMINATING
    setFluidityConnectionStatus $fluidity_id "TERMINATING"
@@ -3306,36 +3499,31 @@ stopFluidity () {
    # Get the server's port number.
    port=$(getPort $fluidity_id)
    
-   # Use netstat and pipe the output to grep. According to
-   # $server_listening_port grep the line referring to that specific 
-   # port and save it to $netstat_connection_status_string.
-   local netstat_connection_status_string=$(netstat -atnp 2>/dev/null | grep $port)
-   
-   # The target is to extract the remote port to $remote_port.
-   # To do that, use a double cut to compartmentalize the line. 
-   # First, fetch the fifth element. Use
-   # the whitespace ' ' as a delimeter character.
-   # Second, fetch the 2nd element. Use the semicolon ':' as a delimeter
-   # character.
-   # Save the result to $remote_port.
-   local remote_port=$(echo $netstat_connection_status_string | cut -d' ' -f 5 | cut -d ':' -f 2)
-   
-   # Use cut to compartmentalize the line. Fetch the sixth element. Use
-   # the whitespace ' ' as a delimeter character. Save the result
-   # to $netstat_connection_status.
-   local netstat_connection_status=$(echo $netstat_connection_status_string | cut -d' ' -f 6)
-   
    # Case 1: The connection is ESTABLISHED. Kill the client AND server 
    # SOCAT connection process.
-   if [[ "$netstat_connection_status" == ESTABLISHED ]]; then
+   if [[ $(getNetstatConnectionStatus $port) == "ESTABLISHED" ]]; then
 
+         # kzjFgtUz
+         # For Fluidity -t
+         # Delete the firewall rules that allow traffic through the
+         # client - server tunnel interfaces before the connection ends.
+         if [[ "$fluidity_flavour_choice" == -t ]]; then
+   
+            # Invoke closeTheLocalTunnelInterface
+            closeTheLocalTunnelInterface $server_tunnel_ip
+            # Invoke closeTheRemoteTunnelInterface
+            closeTheRemoteTunnelInterface $1 $client_tunnel_ip
+      
+         fi
+
+      # heefhEKX
       # Use function fuser, with client port number ($remote_port), 
       # to terminate the remote client SOCAT process. When the process 
       # is terminated, both infinite loops within 
       # runPersistentSOCATServer & runPersistentSOCATClient will restart
       # and subsequently break from execution, due to $allow_execution 
       # being 0.
-      ssh $client_username@$client_ip_add sudo fuser -k $remote_port/tcp
+      ssh $client_username@$client_ip_add sudo fuser -k $(getTheRemotePort $port)/tcp
       
       # Use function fuser, with server port number ($port), to terminate 
       # the local server SOCAT process. When the process is terminated, 
@@ -3408,8 +3596,7 @@ stopFluidity () {
    # Instruct ufw to deny traffic through the designated port.
    closePort $port
    
-   # Give a ufw status feedback.
-   sudo ufw status verbose | grep -e $port
+   reportWhenFirewallRulesAreRemoved $1 $server_listening_port &
 
 }
 
@@ -3464,9 +3651,74 @@ openPort () {
 
 closePort () {
    
-    # UFW: Rule change for port $1
+   # UFW: Rule change for port $1
    sudo ufw delete allow $1
    
+}
+
+# Arguments: ($1), ($2), ($3)
+# $1: Fluidity Connection ID [SSH_ID.SSL_ID]
+# $2: Server's IP address
+# $3: Server Listening Port
+# $4: Client's IP address
+# $5: Fluidity Flavour
+
+# Sourced Variables: NONE
+
+# Intershell File Variables in use:
+# 1. $allow_execution (setAllowExecution, getAllowExecution)
+
+# Global Variables in use: NONE
+
+# Generates: Nothing
+
+# Invokes Functions:
+# 1. openTheLocalTunnelInterface, with args: $2
+# 2. openTheRemoteTunnelInterface, with args: $1, $4
+
+# Calls the script: NONE
+
+# Function Description: Allow traffic through the SOCAT connect tunnel
+# interfaces.
+openTheTunnelInterfaces () {
+   
+   # kzjFgtUz
+   # Get into loop only for option -t (tunnel connections)
+   if [[ "$5" == -t ]]; then
+
+      # While $allow_execution is 1 (.Fluidity execution is allowed)
+      while [ $(getAllowExecution $1) -eq 1 ];
+      do
+      
+         # And If netstat reports that the specific SOCAT connection is
+         # established
+         if [[ $(getNetstatConnectionStatus $3) == "ESTABLISHED" ]]; then
+         
+            echo "ready to execute"
+         
+         
+            # Allow the traffic through the local tunnel interface.
+            # Invoke openTheLocalTunnelInterface
+            openTheLocalTunnelInterface $2
+            
+            # Allow the traffic through the remote tunnel interface.
+            # Invoke openTheRemoteTunnelInterface
+            openTheRemoteTunnelInterface $1 $4
+            
+            # Break the loop.
+            break
+            
+         else
+         
+            # Link is still not ESTABLISHED. Sleep for 1 sec.
+            sleep 1
+            
+         fi
+         
+      done
+
+   fi
+
 }
 
 # Arguments: ($1)
@@ -3500,13 +3752,14 @@ openTheLocalTunnelInterface () {
 
 # Arguments: ($1), ($2)
 # $1: Fluidity Client (SSH) Connection ID.
-# $2: Clients's tunnel interface IP
+# $2: Client's tunnel interface IP
 
 # Sourced Variables:
 # 1. ~/Fluidity_Server/client.$SSH_ID/basic_client_info.txt
    # 1. $server_IP_address
    # 2. $client_IP_address
    # 3. $client_hostname
+   # 4. $random_client_port
 
 # Intershell File Variables in use: NONE
 
@@ -3527,11 +3780,14 @@ openTheLocalTunnelInterface () {
 # tunX Client interface. 
 openTheRemoteTunnelInterface () {
    
+      local SSH_ID=${1%.*}
+   
       # Import the following set of variables:
       # 1. $server_IP_address
       # 2. $client_IP_address
       # 3. $client_username
-   source ~/Fluidity_Server/client.$1/basic_client_info.txt
+      # 4. $random_client_port
+   source ~/Fluidity_Server/client.$SSH_ID/basic_client_info.txt
    
    if [[ ! -e ~/Fluidity_Server/Generated_Scripts/genSCRIPT_openTheRemoteTunnelInterface.sh ]]; then
    
@@ -3557,6 +3813,7 @@ EOF
 
    fi
 
+   # heefhEKX
    ssh $client_username@$client_IP_address 'bash -s' < ~/Fluidity_Server/Generated_Scripts/genSCRIPT_openTheRemoteTunnelInterface.sh
 
 }
@@ -3581,6 +3838,8 @@ EOF
 # Function Description: Prohibit inbound and outbound traffic from the
 # tunX Server interface.
 closeTheLocalTunnelInterface () {
+   
+   local interface
    
    interface=$(findInterfaceFromIP $1)
    
@@ -3617,6 +3876,7 @@ closeTheRemoteTunnelInterface () {
       # 1. $server_IP_address
       # 2. $client_IP_address
       # 3. $client_username
+      # 4. $random_client_port
    source ~/Fluidity_Server/client.$1/basic_client_info.txt
    
    if [[ ! -e ~/Fluidity_Server/Generated_Scripts/genSCRIPT_closeTheRemoteTunnelInterface.sh ]]; then
@@ -3643,6 +3903,7 @@ EOF
 
    fi
 
+   # heefhEKX
    ssh $client_username@$client_IP_address 'bash -s' < ~/Fluidity_Server/Generated_Scripts/genSCRIPT_closeTheRemoteTunnelInterface.sh
    
 }
@@ -3760,8 +4021,9 @@ terminationForcePing () {
 # Generates: Nothing
 
 # Invokes Functions:
-# 1. terminationForcePing, with args ($1)
-# 2. destroyRunTimeVars, with args ($1)
+# 1. getNetstatConnectionStatus. with args ($port)
+# 2. terminationForcePing, with args ($1)
+# 3. destroyRunTimeVars, with args ($1)
 
 # Calls the script: NONE
 
@@ -3827,38 +4089,20 @@ stopFluidityToRenewSSLcerts () {
    setAllowExecution $1 0 
    
    # Get the server's port number.
-   port=$(getPort $1)
-   
-   # Use netstat and pipe the output to grep. According to
-   # $server_listening_port grep the line referring to that specific 
-   # port and save it to $netstat_connection_status_string.
-   local netstat_connection_status_string=$(netstat -atnp 2>/dev/null | grep $port)
-   
-   # The target is to extract the remote port to $remote_port.
-   # To do that, use a double cut to compartmentalize the line. 
-   # First, fetch the fifth element. Use
-   # the whitespace ' ' as a delimeter character.
-   # Second, fetch the 2nd element. Use the semicolon ':' as a delimeter
-   # character.
-   # Save the result to $remote_port.
-   local remote_port=$(echo $netstat_connection_status_string | cut -d' ' -f 5 | cut -d ':' -f 2)
-   
-   # Use cut to compartmentalize the line. Fetch the sixth element. Use
-   # the whitespace ' ' as a delimeter character. Save the result
-   # to $netstat_connection_status.
-   local netstat_connection_status=$(echo $netstat_connection_status_string | cut -d ' ' -f 6)
+   local port=$(getPort $1)
    
    # Case 1: The connection is ESTABLISHED. Kill the client AND server 
    # connection process.
-   if [[ "$netstat_connection_status" == ESTABLISHED ]]; then
+   if [[ $(getNetstatConnectionStatus $port) == "ESTABLISHED" ]]; then
 
+      # heefhEKX
       # Use function fuser, with client port number ($remote_port), 
       # to terminate the remote client SOCAT process. When the process 
       # is terminated, both infinite loops within 
       # runPersistentSOCATServer & runPersistentSOCATClient will restart
       # and subsequently break from execution, due to $allow_execution 
       # being 0.
-      ssh $client_username@$client_ip_add sudo fuser -k $remote_port/tcp
+      ssh $client_username@$client_ip_add sudo fuser -k $(getTheRemotePort $port)/tcp
       
       # Use function fuser, with server port number ($port), to terminate 
       # the local server SOCAT process. When the process is terminated, 
@@ -3954,10 +4198,14 @@ stopFluidityToRenewSSLcerts () {
 # Generates: Nothing
 
 # Invokes Functions:
-# 1. initializeRunTimeVars, with args ($1)
-# 2. storeSOCATlinkStateInformation, with args ($1), ($2), ($3), ($4), ($5), ($6), ($7), ($8), ($9)
-# 2. runPersistentSOCATServer, with args ($1), ($2), ($3), ($7)
-# 3. runPersistenSOCATClient, with args ($1) ($4), ($3), ($5), ($6), ($7)
+# 1. initializeRunTimeVars, with args: ($1)
+# 2. storeSOCATlinkStateInformation, with args: ($1), ($2), ($3), ($4), ($5), ($6), ($7), ($8), ($9)
+# 3. runPersistentSOCATServer, with args: ($1), ($2), ($3), ($7)
+# 4. runPersistenSOCATClient, with args: ($1) ($4), ($3), ($5), ($6), ($7)
+# 5. openPort, with args: ($3)
+# 6. reportWhenLinkIsEstablished, with args: ($1), ($3)
+# 7. openTheTunnelInterfaces, with args: ($1), ($2), ($3), ($4), ($9)
+# 8. reportWhenFirewallRulesAreAdded, with args: ($1), ($3)
 
 # Calls the script: NONE
 
@@ -3976,6 +4224,10 @@ establishSOCATlink () {
    # Set the Server's $port Intershell File Variable.
    setPort $1 $3
    
+   # Invoke openPort
+   # Change UFW rules to allow the traffic through the designated port.
+   openPort $3
+   
    # Invoke storeSOCATlinkStateInformation
    # Export the variables that this instance is running on for Fluidity's
    # monitoring functions.
@@ -3991,13 +4243,21 @@ establishSOCATlink () {
    # Silence the output.
    (runPersistentSOCATClient $1 $4 $3 $5 $6 $7 $8 $9) &
    
-   # Wait a bit... Give time to runPersistentSOCATServer and
-   # runPersistentSOCATClient to get in sych.
-   sleep 10
+   # Invoke reportWhenLinkIsEstablished
+   # Report the link status when the link is detected as established.
+   # (Triggered when netstat reports that the link is ESTABLISED)
+   reportWhenLinkIsEstablished $1 $3 &
    
-   # Display this session's connection status according to port server's
-   # number.
-   netstat -atnp | grep $3
+   # Invoke openTheTunnelInterfaces
+   # Change UFW rules to allow traffic through the TUN interfaces.
+   # (Only for -t flavour)
+   # (Triggered when netstat reports that the link is ESTABLISED)
+   openTheTunnelInterfaces $1 $2 $3 $4 $9 &
+   
+   # Invoke reportWhenFirewallRulesAreAdded
+   # Report the UFW status when the link is detected as established.
+   # (Triggered when netstat reports that the link is ESTABLISED)
+   reportWhenFirewallRulesAreAdded $1 $3 &
    
 }
 
@@ -4043,32 +4303,33 @@ storeSOCATlinkStateInformation () {
    
    local SSH_ID=${1%.*}
    
+   # kzjFgtUz
    if [[ "$9" == -s ]]; then
    
       echo -e \
-      'fluidity_connection_ID='$1\
-      '\nserver_serial_int='$2\
-      '\nserver_listening_port='$3\
-      '\nclient_serial_int='$4\
-      '\nclient_ip_add='$5\
-      '\nclient_username='$6\
-      '\nlink_serial_speed='$7\
-      '\nserver_ip_add='$8\
-      '\nfluidity_flavour_choice='$9\
+      'local fluidity_connection_ID='$1\
+      '\nlocal server_serial_int='$2\
+      '\nlocal server_listening_port='$3\
+      '\nlocal client_serial_int='$4\
+      '\nlocal client_ip_add='$5\
+      '\nlocal client_username='$6\
+      '\nlocal link_serial_speed='$7\
+      '\nlocal server_ip_add='$8\
+      '\nlocal fluidity_flavour_choice='$9\
       > ~/Fluidity_Server/client.$SSH_ID/connection.$1/link_information.txt
    
    elif [[ "$9" == -t ]]; then
    
       echo -e \
-      'fluidity_connection_ID='$1\
-      '\nserver_tunnel_ip='$2\
-      '\nserver_listening_port='$3\
-      '\nclient_tunnel_ip='$4\
-      '\nclient_ip_add='$5\
-      '\nclient_username='$6\
-      '\ntunneling_network_subnet_mask='$7\
-      '\nserver_ip_add='$8\
-      '\nfluidity_flavour_choice='$9\
+      'local fluidity_connection_ID='$1\
+      '\nlocal server_tunnel_ip='$2\
+      '\nlocal server_listening_port='$3\
+      '\nlocal client_tunnel_ip='$4\
+      '\nlocal client_ip_add='$5\
+      '\nlocal client_username='$6\
+      '\nlocal tunneling_network_subnet_mask='$7\
+      '\nlocal server_ip_add='$8\
+      '\nlocal fluidity_flavour_choice='$9\
       > ~/Fluidity_Server/client.$SSH_ID/connection.$1/link_information.txt
       
    else
@@ -4154,14 +4415,14 @@ initializeRunTimeVars () {
    
    # Create and initialize the runTimeVars into Function Description 
    # variables list.
-   echo -e 'allow_execution=0' > ~/Fluidity_Server/client.$SSH_ID/connection.$1/runtimeVars/allow_execution
-   echo -e 'port=0' > ~/Fluidity_Server/client.$SSH_ID/connection.$1/runtimeVars/port
-   echo -e 'server_is_terminated=0' > ~/Fluidity_Server/client.$SSH_ID/connection.$1/runtimeVars/server_is_terminated
-   echo -e 'client_is_terminated=0' > ~/Fluidity_Server/client.$SSH_ID/connection.$1/runtimeVars/client_is_terminated
-   echo -e 'sleep_pid=0' > ~/Fluidity_Server/client.$SSH_ID/connection.$1/runtimeVars/sleep_pid
-   echo -e 'termination_force_ping=0' > ~/Fluidity_Server/client.$SSH_ID/connection.$1/runtimeVars/termination_force_ping
-   echo -e 'fluidity_connection_status=INITIALIZING' > ~/Fluidity_Server/client.$SSH_ID/connection.$1/runtimeVars/fluidity_connection_status
-   echo -e 'ping_delay=0' > ~/Fluidity_Server/client.$SSH_ID/connection.$1/runtimeVars/ping_delay
+   echo -e 'local allow_execution=0' > ~/Fluidity_Server/client.$SSH_ID/connection.$1/runtimeVars/allow_execution
+   echo -e 'local port=0' > ~/Fluidity_Server/client.$SSH_ID/connection.$1/runtimeVars/port
+   echo -e 'local server_is_terminated=0' > ~/Fluidity_Server/client.$SSH_ID/connection.$1/runtimeVars/server_is_terminated
+   echo -e 'local client_is_terminated=0' > ~/Fluidity_Server/client.$SSH_ID/connection.$1/runtimeVars/client_is_terminated
+   echo -e 'local sleep_pid=0' > ~/Fluidity_Server/client.$SSH_ID/connection.$1/runtimeVars/sleep_pid
+   echo -e 'local termination_force_ping=0' > ~/Fluidity_Server/client.$SSH_ID/connection.$1/runtimeVars/termination_force_ping
+   echo -e 'local fluidity_connection_status=INITIALIZING' > ~/Fluidity_Server/client.$SSH_ID/connection.$1/runtimeVars/fluidity_connection_status
+   echo -e 'local ping_delay=0' > ~/Fluidity_Server/client.$SSH_ID/connection.$1/runtimeVars/ping_delay
    
 }
 
@@ -4288,6 +4549,7 @@ runPersistentSOCATServer () {
 
 runSOCATserver () {
    
+   # kzjFgtUz
    # Case 1: Initiate a serial connection.
    if [[ "$5" == -s ]]; then
    
@@ -4299,11 +4561,6 @@ runSOCATserver () {
    
       # Invoke runTUNnelSOCATserver
       runTUNnelSOCATserver $1 $2 $3 $4
-   
-   # Error handling case: Display the acceptable values.
-   else
-   
-      echo -e "Acceptable values \"-s\" SERIAL or \"-t\" TUNNEL."
       
    fi
    
@@ -4462,9 +4719,10 @@ runTUNnelSOCATserver () {
 # 2. verifyThatTokenSlotFolderIsEmpty, with args: ($1), ($4), ($5)
 # 3. verifyTheSSLCertificates, with args: ($1), ($4), ($5)
 # 4. doAClientServerMD5EquivalencyCheck, with args: ($1), ($4), ($5)
-# 5. inactiveLinkInternalSSLrenew, with args: ($1)
-# 6. runSOCATclient, with args: ($1), ($2), ($3), ($4), ($5), ($6)
-# 7. encryptClient, with args: ($1), ($4), ($5)
+# 5. doAClientServerSHA256EquivalencyCheck, with args: ($1), ($4), ($5)
+# 6. inactiveLinkInternalSSLrenew, with args: ($1)
+# 7. runSOCATclient, with args: ($1), ($2), ($3), ($4), ($5), ($6)
+# 8. encryptClient, with args: ($1), ($4), ($5)
 
 # Function Description: Adding persistence to runSOCATclient with a few
 # twists.
@@ -4551,7 +4809,8 @@ runPersistentSOCATClient () {
          # substitution.
          while verifyThatTokenSlotFolderIsEmpty $1 $4 $5 | grep -e 'verifyThatTokenSlotFolderIsEmpty FAILED'\
           || verifyThatSSLCertificatesExist $1 $4 $5 | grep -e 'verifyThatSSLCertificatesExist FAILED'\
-           || doAClientServerMD5EquivalencyCheck $1 $4 $5 | grep -e 'doAClientServerMD5EquivalencyCheck FAILED'; do
+           || doAClientServerMD5EquivalencyCheck $1 $4 $5 | grep -e 'doAClientServerMD5EquivalencyCheck FAILED'\
+            || doAClientServerSHA256EquivalencyCheck $1 $4 $5 | grep -e 'doAClientServerSHA256EquivalencyCheck FAILED'; do
             
             if ! ping -c 4 $4; then
                # Connection to client lost. Break the loop.
@@ -4583,7 +4842,7 @@ runPersistentSOCATClient () {
          # Client is available and the FLUIDITY home folder in remote 
          # machine is decrypted. Proceed with runSOCATclient.
          runSOCATclient $1 $2 $3 $4 $5 $6 $7 $8
-         
+           
          if [[ $(getFluidityConnectionStatus $1) == "TERMINATING" || \
          $(getFluidityConnectionStatus $1) == "TERMINATION_PENDING" ]]; then 
             echo "Initiating encryptClient in state: $(getFluidityConnectionStatus $1)"
@@ -4712,6 +4971,7 @@ runPersistentSOCATClient () {
 
 runSOCATclient () {
   
+   # kzjFgtUz
    # Case 1: Initiate a serial connection.
    if [[ "$8" == -s ]]; then
    
@@ -4721,14 +4981,16 @@ runSOCATclient () {
    # Case 2: Initiate an ethernet tunneling connecion.
    elif [[ "$8" == -t ]]; then
    
+      # Invoke injectTheListOfFluidityConnectionRoutes
+      # Add the client routes list stored in 
+      # listOfClientRoutes.[SSH_ID.SSL_ID].sh to client machine.
+      # Add the server routes list stored in 
+      # listOfServerRoutes.sh to server machine.
+      injectTheListOfFluidityConnectionRoutes $1 $3 $4 $5 &
+   
       # Invoke runTUNnelSOCATclient
       runTUNnelSOCATclient $1 $2 $3 $4 $5 $6 $7
    
-   # Error handling case: Display the acceptable values.
-   else
-   
-      echo -e "Acceptable values \"-s\" SERIAL or \"-t\" TUNNEL."
-      
    fi
    
 }
@@ -4811,6 +5073,7 @@ runSerialSOCATclient() {
       
    fi
 
+   # heefhEKX
    # SSH remotely execute genSCRIPT_client.[SSH_ID.SSL_ID].sh
    ssh $5@$4 'bash -s' < ~/Fluidity_Server/client.$SSH_ID/connection.$1/genSCRIPT_client.$1.sh $1 $2 $3 $6 \
 	$7 $client_bogus_pass
@@ -4895,6 +5158,7 @@ runTUNnelSOCATclient() {
       
    fi
 
+   # heefhEKX
    # Remotely execute genSCRIPT_client.[SSH_ID.SSL_ID].sh
    ssh $5@$4 'bash -s' < ~/Fluidity_Server/client.$SSH_ID/connection.$1/genSCRIPT_client.$1.sh $1 $2 $3 $6 \
 	$7 $client_bogus_pass
@@ -4973,6 +5237,7 @@ isItEncryptedOnClient () {
    
    if [[ ! -e ~/Fluidity_Server/Generated_Scripts/genSCRIPT_isItEncryptedOnClient.sh ]]; then
    
+   # heefhEKX
    # Grep the text output from df -T about the encryption status of folder 
    # Fluidity_Client/Connection$1. If encryptfs is mentioned in the output
    # then the folder is considered as decrypted and mounted. If not, then
@@ -5052,6 +5317,7 @@ decryptClient () {
       
    fi
 
+   # heefhEKX
    # SSH remotely execute genSCRIPT_decrClient.sh
    ssh $3@$2 'bash -s' < ~/Fluidity_Server/Generated_Scripts/genSCRIPT_decrClient.sh \
 	$1 $decr_Pass
@@ -5082,6 +5348,7 @@ encryptClient () {
 	
    local SSH_ID=${1%.*}
    
+   # heefhEKX
    # Execute through SSH and unmount target directory
    # ~/Fluidity_Client/Connection$1 from ecryptfs.
    ssh $3@$2 sudo umount ~/Fluidity_Client/connection.$1
@@ -5115,6 +5382,7 @@ encryptClient () {
 # is empty and contains no files.
 verifyThatTokenSlotFolderIsEmpty () {
    
+   # heefhEKX
    if [ "$(ssh $3@$2 ls -A ~/Fluidity_Client/connection.$1/tokenSlot)" ]; then
       # Message to calling function.
       echo "verifyThatTokenSlotFolderIsEmpty FAILED"
@@ -5160,11 +5428,13 @@ verifyThatSSLCertificatesExist () {
          # Message to calling function.
          echo "verifyThatSSLCertificatesExist FAILED"
          return
+      # heefhEKX
       elif [ ! $(ssh $3@$2 ls -A ~/Fluidity_Client/connection.$1/servercon.$1.crt) ]; then
          echo "servercon.$1.crt is missing."
          # Message to calling function.
          echo "verifyThatSSLCertificatesExist FAILED"
          return
+      # heefhEKX
       elif [ ! $(ssh $3@$2 ls -A ~/Fluidity_Client/connection.$1/clientcon.$1.pem) ]; then
          echo "clientcon.$1.pem is missing."
          # Message to calling function.
@@ -5262,9 +5532,11 @@ END_CAT
       
    fi
 
+   # heefhEKX
    # SSH remotely execute genSCRIPT_retrieveClientPemMD5.sh
    local client_pem_md5=$(ssh $3@$2 'bash -s' < ~/Fluidity_Server/client.$SSH_ID/connection.$1/genSCRIPT_retrieveClientPemMD5.sh $1 $client_bogus_pass)
    # echo "client_pem_md5 is: $client_pem_md5"
+   # heefhEKX
    local server_crt_md5=$(ssh $3@$2 openssl x509 -noout -modulus -in ~/Fluidity_Client/connection.$1/servercon.$1.crt | openssl md5)
    # echo "server_crt_md5 is: $server_crt_md5"
    
@@ -5290,6 +5562,382 @@ END_CAT
    fi
    
    rm ~/Fluidity_Server/client.$SSH_ID/connection.$1/genSCRIPT_retrieveClientPemMD5.sh
+}
+
+# Arguments: ($1), ($2), ($3)
+# $1: Fluidity Connection ID [SSH_ID.SSL_ID]
+# $2: Client IP address
+# $3: Client username (for raspbian OS the default is pi@)
+
+# Sourced Variables: NONE
+
+# Intershell File Variables in use: NONE
+
+# Global Variables in use: NONE
+
+# Generates: 
+# 1. Bash script (.sh): genSCRIPT_retrieveClientPemSHA256.sh
+
+# Calls the script: 
+# 1. genSCRIPT_retrieveClientPemSHA256.sh, with args ($1),
+# $client_bogus_pass in ~/Fluidity_Server/Generated_Scripts
+
+# Invokes Functions: NONE
+
+# Function Description: Check that the client - server .crt and .pem 
+# SHA256 file hashes match. If they match, the client certificates are 
+# valid and ready to be used.
+doAClientServerSHA256EquivalencyCheck () {
+
+   local SSH_ID=${1%.*}
+
+   local server_pass=$(cat ~/Fluidity_Server/client.$SSH_ID/connection.$1/s_password.$1.txt)
+   # Recall and store client's SSH certificate password
+   local client_bogus_pass=$(cat ~/Fluidity_Server/client.$SSH_ID/connection.$1/c_bogus_password.$1.txt)
+   # echo "Client bogus pass is: $client_bogus_pass"
+   
+   local expect_out=$(expect -c '
+      spawn $env(SHELL)
+      expect "\\$" {
+         send "(openssl rsa -noout -modulus -in ~/Fluidity_Server/client.'$SSH_ID'/connection.'$1'/servercon.'$1'.pem | openssl dgst -sha256)\r"
+      }
+      expect -re "servercon.'$1'.pem:" {
+         send "'$server_pass'\r"
+      }
+      expect "\\$" {
+         send "exit\r"
+      }
+   ')
+   
+   local server_pem_SHA256=$(echo "$expect_out" | grep -o '(stdin)=.*')
+   # echo "server_pem_SHA256 is: $server_pem_SHA256"
+   
+   local client_crt_SHA256=$(openssl x509 -noout -modulus -in ~/Fluidity_Server/client.$SSH_ID/connection.$1/clientcon.$1.crt | openssl dgst -sha256)
+   # echo "client_crt_SHA256 is: $client_crt_SHA256"
+
+   # Generate bash script genSCRIPT_retrieveClientPemSHA256.sh
+
+   # If an existing configuration file is found, leave it intact. Else,
+   # create a new one with the default settings.
+   if [[ ! -e ~/Fluidity_Server/client.$SSH_ID/connection.$1/genSCRIPT_retrieveClientPemSHA256.sh ]]; then
+   
+      cat <<- 'END_CAT' > ~/Fluidity_Server/client.$SSH_ID/connection.$1/genSCRIPT_retrieveClientPemSHA256.sh
+      cd ~/Fluidity_Client/connection.$1
+
+      pass=$(echo $hashed_pass | openssl enc -aes-128-cbc -a -d -salt -pass pass:$2)
+      expect_out=$(expect -c '
+         spawn $env(SHELL)
+         expect "\\$" {
+            send "(openssl rsa -noout -modulus -in ~/Fluidity_Client/connection.'$1'/clientcon.'$1'.pem) | (openssl dgst -sha256)\r"
+         }
+         expect -re "clientcon.'$1'.pem:" {
+            send "'$pass'\r"
+         }
+         expect "\\$" {
+            send "exit\r"
+         }
+      ')
+      
+      echo "$expect_out" | grep -o '(stdin)=.*'
+END_CAT
+
+      chmod 700 ~/Fluidity_Server/client.$SSH_ID/connection.$1/genSCRIPT_retrieveClientPemSHA256.sh
+
+      echo "sed -i '2s/.*/$(echo hashed_pass="$(cat ~/Fluidity_Server/client.$SSH_ID/connection.$1/hashed_clientpass_con.$1.txt)" | sed -e 's/[\/&]/\\&/g' )/' ~/Fluidity_Server/client.$SSH_ID/connection.$1/genSCRIPT_retrieveClientPemSHA256.sh" | bash -
+      
+   fi
+
+   # heefhEKX
+   # SSH remotely execute genSCRIPT_retrieveClientPemSHA256.sh
+   local client_pem_SHA256=$(ssh $3@$2 'bash -s' < ~/Fluidity_Server/client.$SSH_ID/connection.$1/genSCRIPT_retrieveClientPemSHA256.sh $1 $client_bogus_pass)
+   # heefhEKX
+   # echo "client_pem_SHA256 is: $client_pem_SHA256"
+   local server_crt_SHA256=$(ssh $3@$2 openssl x509 -noout -modulus -in ~/Fluidity_Client/connection.$1/servercon.$1.crt | openssl dgst -sha256)
+   # echo "server_crt_SHA256 is: $server_crt_SHA256"
+   
+   if [[ ${server_pem_SHA256:9:32} == ${server_crt_SHA256:9:32} ]]\
+    && [[ ${client_pem_SHA256:9:32} == ${client_crt_SHA256:9:32} ]]; then
+    
+      echo 'servercon.'$1'.pem SHA256 is: '${server_pem_SHA256:9:32}
+      echo 'servercon.'$1'.crt SHA256 is: '${server_crt_SHA256:9:32}
+      echo 'clientcon.'$1'.pem SHA256 is: '${client_pem_SHA256:9:32}
+      echo 'clientcon.'$1'.crt SHA256 is: '${client_crt_SHA256:9:32}
+      # Message to calling function.
+      echo "doAClientServerSHA256EquivalencyCheck PASSED"
+      
+   else
+   
+      echo 'servercon.'$1'.pem SHA256 is: '${server_pem_SHA256:9:32}
+      echo 'servercon.'$1'.crt SHA256 is: '${server_crt_SHA256:9:32}
+      echo 'clientcon.'$1'.pem SHA256 is: '${client_pem_SHA256:9:32}
+      echo 'clientcon.'$1'.crt SHA256 is: '${client_crt_SHA256:9:32}
+      # Message to calling function.
+      echo "doAClientServerSHA256EquivalencyCheck FAILED"
+      
+   fi
+   
+   rm ~/Fluidity_Server/client.$SSH_ID/connection.$1/genSCRIPT_retrieveClientPemSHA256.sh
+}
+
+
+# 6. Fluidity Engine Functions
+# 6.2 Private Functions
+# 6.2.5 VPN Routing
+
+
+# Arguments: ($1), ($2), ($3), ($4), ($5)
+# $1: Fluidity Connection ID [SSH_ID.SSL_ID]
+# $2: Server port
+# $3: Client IP.
+# $4: Client Username.
+
+# Sourced Variables: NONE
+
+# Intershell File Variables in use: NONE
+
+# Global Variables in use: NONE
+
+# Generates: Nothing
+
+# Invokes Functions: 
+# 1. injectTheListOfServerRoutes, no args.
+# 2. injectTheListOfClientRoutes, with args: $1, $3, $4
+
+# Calls the script: NONE
+
+# Function Description: Inject the VPN routes in client and server.
+injectTheListOfFluidityConnectionRoutes () {
+   
+   # While $allow_execution is 1 (.Fluidity execution is allowed)
+   while [ $(getAllowExecution $1) -eq 1 ];
+   do
+   
+      # And If netstat reports that the specific SOCAT connection is
+      # established
+      if [[ $(getNetstatConnectionStatus $2) == "ESTABLISHED" ]]; then
+      
+         # Inject the routes contained into: injectTheListOfServerRoutes
+         # Invoke injectTheListOfServerRoutes
+         injectTheListOfServerRoutes
+         
+         # Inject the routes contained into: injecTheListOfClientRoutes
+         # Invoke injectTheListOfServerRoutes
+         injectTheListOfClientRoutes $1 $3 $4
+         
+         # Break the loop.
+         break
+         
+      else
+      
+         # Link is still not ESTABLISHED. Sleep for 1 sec.
+         sleep 1
+         
+      fi
+      
+   done
+
+}
+
+# Arguments: NONE
+
+# Sourced Variables: NONE
+
+# Intershell File Variables in use: NONE
+
+# Global Variables in use: NONE
+
+# Generates: Nothing
+
+# Invokes Functions: NONE
+
+# Calls the script: 
+# 1. listOfServerRoutes.sh, with no args
+# in: ~/Fluidity_Server/client.$SSH_ID/connection.$1
+
+# Function Description: 
+injectTheListOfServerRoutes () {
+   
+   # Do a local execution.
+   bash ~/Fluidity_Server/listOfServerRoutes.sh
+   
+}
+
+# Arguments: ($1), ($2), ($3)
+# $1: Fluidity Connection ID [SSH_ID.SSL_ID]
+# $2: Client IP.
+# $3: Client Username.
+
+# Sourced Variables: NONE
+
+# Intershell File Variables in use: NONE
+
+# Global Variables in use: NONE
+
+# Generates: Nothing
+
+# Invokes Functions: NONE
+
+# Calls the script:
+# 1. listOfClientRoutes.$1.sh, with no args
+# in: ~/Fluidity_Server/client.$SSH_ID/connection.$1
+
+# Function Description: 
+injectTheListOfClientRoutes () {
+   
+   local SSH_ID=${1%.*}
+   
+   # heefhEKX
+   # Do a remote execution.
+   ssh $3@$2 'bash -s' < ~/Fluidity_Server/client.$SSH_ID/connection.$1/listOfClientRoutes.$1.sh
+   
+}
+
+
+# 6. Fluidity Engine Functions
+# 6.2 Private Functions
+# 6.2.6 Engine Reporting
+
+
+# Arguments: ($1), ($2)
+# $1: Fluidity Connection ID [SSH_ID.SSL_ID]
+# $2: Server port
+
+# Sourced Variables: NONE
+
+# Intershell File Variables in use:
+# 1. $allow_execution (setAllowExecution, getAllowExecution)
+
+# Global Variables in use: NONE
+
+# Generates: Nothing
+
+# Invokes Functions: NONE
+
+# Calls the script: NONE
+
+# Function Description: While .Fluidity execution is allowed, repeatedly
+# check whether the SOCAT link is up. If the SOCAT link is in 
+# ESTABLISHED state, then report its current connection status.
+reportWhenLinkIsEstablished () {
+   
+   # While $allow_execution is 1 (.Fluidity execution is allowed)
+   while [ $(getAllowExecution $1) -eq 1 ];
+   
+   do
+      
+      # And If netstat reports that the specific SOCAT connection is
+      # established
+      if [[ $(getNetstatConnectionStatus $2) == "ESTABLISHED" ]]; then
+      
+         # Do a full status report for that specific connection.
+         netstat -atnp 2>/dev/null | grep -e $2
+         # Once you report, break the loop.
+         break
+         
+      else
+      
+         # Link is still not ESTABLISHED. Sleep for 1 sec.
+         sleep 1
+         
+      fi
+      
+   done
+
+}
+
+# Arguments: ($1), ($2)
+# $1: Fluidity Connection ID [SSH_ID.SSL_ID]
+# $2: Server port
+
+# Sourced Variables: NONE
+
+# Intershell File Variables in use:
+# 1. $allow_execution (setAllowExecution, getAllowExecution)
+
+# Global Variables in use: NONE
+
+# Generates: Nothing
+
+# Invokes Functions: NONE
+
+# Calls the script: NONE
+
+# Function Description: While .Fluidity execution is allowed, repeatedly
+# check whether the SOCAT link is up. If the SOCAT link is in 
+# ESTABLISHED state, then report the current UFW status for that 
+# specific port.
+reportWhenFirewallRulesAreAdded () {
+   
+   # While $allow_execution is 1 (.Fluidity execution is allowed)
+   while [ $(getAllowExecution $1) -eq 1 ];
+   
+   do
+   
+      # And If netstat reports that the specific SOCAT connection is
+      # established
+      if [[ $(getNetstatConnectionStatus $2) == "ESTABLISHED" ]]; then
+      
+         # Do a UFW status report for that specific port.
+         sudo ufw status verbose | grep -e $2
+         
+         # Once you report, break the loop.
+         break
+         
+      else
+      
+         # Link is still not ESTABLISHED. Sleep for 1 sec.
+         sleep 1
+         
+      fi
+      
+   done
+
+}
+
+# Arguments: ($1), ($2)
+# $1: Fluidity Connection ID [SSH_ID.SSL_ID]
+# $2: Server port
+
+# Sourced Variables: NONE
+
+# Intershell File Variables in use:
+# 1. $allow_execution (setAllowExecution, getAllowExecution)
+
+# Global Variables in use: NONE
+
+# Generates: Nothing
+
+# Invokes Functions: NONE
+
+# Calls the script: NONE
+
+# Function Description: 
+reportWhenFirewallRulesAreRemoved () {
+   
+   # While .Fluidity is manually stopped.
+   while [[ $(getAllowExecution $1) == "null" ]];
+   
+   do
+   
+      # And if the current SOCAT connection is terminated.
+      if ! [[ $(getNetstatConnectionStatus $2) == "ESTABLISHED" ]]; then
+      
+         # Do a UFW status report for that specific port.
+         sudo ufw status verbose | grep -e $2
+         # Inform the user that the firewall rules sucessfully removed.
+         echo "Firewall rules for port $2 sucessfully removed."
+         # Break the loop.
+         break
+         
+      else
+      
+         # SOCAT link is still established. Sleep for 1 sec.
+         sleep 1
+         
+      fi
+      
+   done
+
 }
 
 
@@ -5463,6 +6111,7 @@ showLinkStatus () {
    # to $netstat_connection_status.
    local netstat_connection_status=$(echo $netstat_connection_status_string| cut -d' ' -f 6)
    
+   # kzjFgtUz
    # Case 1: Serial Link
    if [[ "$fluidity_flavour_choice" == -s ]]; then
    
@@ -5593,6 +6242,7 @@ displaySerialDevices () {
 # the hostname to target client.
 changeRemoteHostName () {
 
+   # heefhEKX
    ssh $3@$2 sudo hostnamectl set-hostname $1
 
 }
@@ -5799,14 +6449,110 @@ checkRemoteEntropy () {
    
    fi
    
+   # heefhEKX
    # SSH remotely execute genSCRIPT_checkRemoteEntropy.sh
    ssh $2@$1 'bash -s' < ~/Fluidity_Server/Generated_Scripts/genSCRIPT_checkRemoteEntropy.sh
   
 }
 
+# Arguments: ($1)
+# $1: Server port
+
+# Sourced Variables: NONE
+
+# Intershell File Variables in use: NONE
+
+# Global Variables in use: NONE
+
+# Generates: Nothing
+
+# Invokes Functions: NONE
+
+# Calls the script: NONE
+
+# Function Description: Based on server port, retrieve the SOCAT connection
+# status from netstat.
+getNetstatConnectionStatus () {
+
+   # Use netstat and pipe the output to grep. Grep will search the
+   # string and return a result according to argument $1.
+   local netstat_connection_status_string=$(netstat -atnp 2>/dev/null | grep $1)
+      
+   # Use cut to compartmentalize the line. Fetch the sixth element. Use
+   # the whitespace ' ' as a delimeter character. Save the result
+   # to $netstat_connection_status.
+   local netstat_connection_status=$(echo $netstat_connection_status_string | cut -d ' ' -f 6)
+      
+   echo $netstat_connection_status
+}
+
+# Arguments: ($1)
+# $1: Server port
+
+# Sourced Variables: NONE
+
+# Intershell File Variables in use: NONE
+
+# Global Variables in use: NONE
+
+# Generates: Nothing
+
+# Invokes Functions: NONE
+
+# Calls the script: NONE
+
+# Function Description: Based on server port, retrieve the remote
+# machine port from netstat.
+getTheRemotePort () {
+
+   # Use netstat and pipe the output to grep. Grep will search the
+   # string and return a result according to argument $1.
+   local netstat_connection_status_string=$(netstat -atnp 2>/dev/null | grep $1)
+   
+   # Extract the remote port to $remote_port. Use a double cut to 
+   # compartmentalize the line. First, fetch the fifth element. Use
+   # the whitespace ' ' as a delimeter character.
+   # Second, fetch the 2nd element. Use the semicolon ':' as a delimeter
+   # character.
+   # Save the result to $remote_port.
+   local remote_port=$(echo $netstat_connection_status_string | cut -d' ' -f 5 | cut -d ':' -f 2)
+   
+   echo $remote_port
+}
+
+# Arguments: ($1)
+# $1: SSH ID
+# $2: Client IP
+# $3: Random SSH port
+
+# Sourced Variables: NONE
+
+# Intershell File Variables in use: NONE
+
+# Global Variables in use: NONE
+
+# Generates: Nothing
+
+# Invokes Functions: NONE
+
+# Calls the script: NONE
+
+# Function Description:
+removeFluidityClientConfigInfoFromSSHConfig () {
+   
+   grep -F -v "$(echo -e 'Host '$2'\n'\
+   '  IdentityFile ~/.ssh/client.'$1'\n'\
+   '  Port '$3'')" \
+   ~/.ssh/config > \
+   ~/.ssh/config.tmp
+   rm ~/.ssh/config
+   mv ~/.ssh/config.tmp ~/.ssh/config
+   
+}
+
 
 # 9. Managing Internal Interfaces
-# 9.1 Public Managing Internal Interfaces
+# 9.1 Public Functions
 
 
 # Arguments: ($1)
@@ -5817,6 +6563,7 @@ checkRemoteEntropy () {
    # 1. $server_IP_address
    # 2. $client_IP_address
    # 3. $client_username
+   # 4. $random_client_port
 
 # Intershell File Variables in use: NONE
 
@@ -5834,26 +6581,50 @@ checkRemoteEntropy () {
 # through it.
 setInternalInterface () {
    
-   for file in /Fluidity_Server/client.* ; do
-      
-      # Source the variables:
-         # 1. $server_IP_address
-         # 2. $client_IP_address
-         # 3. $client_username
-      source $(echo $file)/basic_client_info.txt
-         
-      interface=$(findInterfaceFromIP $server_IP_address)
-         
-      if [[ "$interface" == "$1" ]]; then
-            
-         echo "Fluidity $file with server IP address $server_IP_address is using interface $1 as an external interface"
-         return;
-            
-      fi
-         
-   done
+   if [ -d ~/Fluidity_Server ]; then 
    
-   if ifconfig | grep "$1"; then
+      for file in ~/Fluidity_Server/client.* ; do
+         
+         # Source the variables:
+            # 1. $server_IP_address
+            # 2. $client_IP_address
+            # 3. $client_username
+            # 4. $random_client_port
+         source $(echo $file)/basic_client_info.txt
+            
+         interface=$(findInterfaceFromIP $server_IP_address)
+            
+         if [[ "$interface" == "$1" ]]; then
+               
+            echo ".Fluidity $file with external server IP address $server_IP_address is utilizing interface $1 as an external interface."
+            return;
+               
+         fi
+            
+      done
+      
+   elif [ -d ~/Fluidity_Client ]; then
+      
+      client_IP_address=$(sudo ufw status | grep "HFBCvIa7h" | tr -s " " | cut -d' ' -f 6)
+      
+      interface=$(findInterfaceFromIP $client_IP_address)
+      
+      if [[ "$interface" == "$1" ]]; then
+               
+         echo ".Fluidity Client with external client IP address $client_IP_address is utilizing interface $1 as an external interface."
+         return;
+               
+      fi
+      
+   else
+      
+      # Message to user:
+      echo "No .Fluidity installation detected."
+      return 
+      
+   fi
+   
+   if ifconfig | cut -d' ' -f1 | cut -d':' -f1 | grep -x "$1" ; then
    
          sudo ufw allow in on $1
          sudo ufw allow out on $1
@@ -5886,8 +6657,51 @@ setInternalInterface () {
 # interface from being "internal" and turn its Firewall settings back to
 # the default settings.
 removeInternalInterface () {
+   
+   if [ -d ~/Fluidity_Server ]; then 
+   
+      for file in ~/Fluidity_Server/client.* ; do
+         
+         # Source the variables:
+            # 1. $server_IP_address
+            # 2. $client_IP_address
+            # 3. $client_username
+            # 4. $random_client_port
+         source $(echo $file)/basic_client_info.txt
+            
+         interface=$(findInterfaceFromIP $server_IP_address)
+            
+         if [[ "$interface" == "$1" ]]; then
+               
+            echo ".Fluidity $file with external server IP address $server_IP_address is utilizing interface $1 as an external interface."
+            return;
+               
+         fi
+            
+      done
+      
+   elif [ -d ~/Fluidity_Client ]; then
+      
+      client_IP_address=$(sudo ufw status | grep "HFBCvIa7h" | tr -s " " | cut -d' ' -f 6)
+      
+      interface=$(findInterfaceFromIP $client_IP_address)
+      
+      if [[ "$interface" == "$1" ]]; then
+               
+         echo ".Fluidity Client with external client IP address $client_IP_address is utilizing interface $1 as an external interface."
+         return;
+               
+      fi
+      
+   else
+      
+      # Message to user:
+      echo "No .Fluidity installation detected."
+      return 
+      
+   fi
 
-   if ifconfig | grep "$1"; then
+   if ifconfig | cut -d' ' -f1 | cut -d':' -f1 | grep -x "$1" ; then
    
       sudo ufw delete allow in on $1
       sudo ufw delete allow out on $1
@@ -5898,4 +6712,267 @@ removeInternalInterface () {
       
    fi
 
+}
+
+
+# 10. VPN Routing
+# 10.1 Public Functions
+
+
+# Arguments: ($1), ($2), ($3), ($4), ($5), ($6)
+# $1: Fixed value: ip
+# $2: Fixed value: route
+# $3: Fixed value: add
+# $4: IP network and subnet mask
+# $5: Fixed value: via
+# $6: Exit IP
+
+# Sourced Variables: NONE
+
+# Intershell File Variables in use: NONE
+
+# Global Variables in use: NONE
+
+# Generates:
+# 1. Bash script (.sh): listOfServerRoutes.sh
+# or adds information to it.
+
+# Invokes Functions: NONE
+
+# Calls the script: NONE
+
+# Function Description: 
+addServerRoute () {
+   
+   # Safety check 1: Number of arguments should be no less than 6.
+   if [ "$#" -ne 6 ]; then
+      echo "Illegal number of parameters"
+      return
+   fi
+   
+   # Safety check 2: Force a specific command syntax.
+   if ! [[ $1 == "ip" && $2 == "route" && $3 == "add" && $5 == "via" ]]; then
+      echo "Command should be in the form of:" 
+      echo "ip route add x.y.z.w/mask via x.y.z.w"
+      return
+   fi
+   
+   # Safety check 3: Cancel execution if this route is already in server
+   # list.
+   if [[ -e ~/Fluidity_Server/listOfServerRoutes.sh ]]; then
+
+      if cat ~/Fluidity_Server/listOfServerRoutes.sh | grep "sudo $1 $2 $3 $4 $5 $6"; then
+         echo "Route already exists in serverRoutes.sh"
+         return
+      fi
+   
+   fi
+   
+   if [[ ! -e ~/Fluidity_Server/listOfServerRoutes.sh ]]; then
+   
+      # Message to user.
+      echo "Creating serverRoutes.sh"
+   
+      # Add the route to server list.
+      echo "sudo $1 $2 $3 $4 $5 $6" >> ~/Fluidity_Server/listOfServerRoutes.sh
+      
+      # Change permissions.
+      chmod 700 ~/Fluidity_Server/listOfServerRoutes.sh
+      
+   else
+   
+      # Add the route to server list.
+      echo "sudo $1 $2 $3 $4 $5 $6" >> ~/Fluidity_Server/listOfServerRoutes.sh
+      
+   fi
+   
+}
+
+# Arguments: ($1), ($2), ($3), ($4), ($5), ($6)
+# $1: Fixed value: ip 
+# $2: Fixed value: route
+# $3: Fixed value: add
+# $4: IP network and subnet mask
+# $5: Fixed value: via
+# $6: Exit IP
+
+# Sourced Variables: NONE
+
+# Intershell File Variables in use: NONE
+
+# Global Variables in use: NONE
+
+# Generates: Nothing
+
+# Invokes Functions: NONE
+
+# Calls the script: NONE
+
+# Function Description: 
+removeServerRoute () {
+   
+   # Safety check 1: Number of arguments should be no less than 6.
+   if [ "$#" -ne 6 ]; then
+      echo "Illegal number of parameters"
+      return
+   fi
+   
+   # Safety check 2: Force a specific command syntax.
+   if ! [[ $1 == "ip" && $2 == "route" && $3 == "add" && $5 == "via" ]]; then
+      echo "Command should be in the form of:" 
+      echo "ip route add x.y.z.w/mask via x.y.z.w"
+      return
+   fi
+   
+   # Safety check 3: Cancel execution if the route is absent from the 
+   # server list.
+   if ! cat ~/Fluidity_Server/listOfServerRoutes.sh | grep "sudo $1 $2 $3 $4 $5 $6"; then
+      echo "Route does not exist in serverRoutes.sh"
+      return
+   fi
+   
+   # Remove the route from the server list.
+   grep -F -v "sudo $1 $2 $3 $4 $5 $6" \
+   ~/Fluidity_Server/listOfServerRoutes.sh > \
+   ~/Fluidity_Server/listOfServerRoutes.sh.tmp && \
+   mv ~/Fluidity_Server/listOfServerRoutes.sh.tmp \
+   ~/Fluidity_Server/listOfServerRoutes.sh
+   
+}
+
+# Arguments: ($1), ($2), ($3), ($4), ($5), ($6), ($7), ($8)
+# $1: Fluidity Client (SSH) Connection ID.
+# $2: Fluidity Virtual Circuit (SSL) Connection ID.
+# $3: Fixed value: ip 
+# $4: Fixed value: route
+# $5: Fixed value: add
+# $6: IP network and subnet mask
+# $7: Fixed value: via
+# $8: Exit IP 
+
+# Sourced Variables: NONE
+
+# Intershell File Variables in use: NONE
+
+# Global Variables in use: NONE
+
+# Generates: 
+# 1. Bash script (.sh): listOfClientRoutes.$1.$2.sh
+# or adds information to it.
+
+# Invokes Functions: NONE
+
+# Calls the script: NONE
+
+# Function Description: 
+addClientRoute () {
+   
+   # Safety check 1: Number of arguments should be no less than 8.
+   if [ "$#" -ne 8 ]; then
+      echo "Illegal number of parameters"
+      return
+   fi
+   
+   # Safety check 2: Force a specific command syntax.
+   if ! [[ $3 == "ip" && $4 == "route" && $5 == "add" && $7 == "via" ]]; then
+      echo "Command should be in the form of:" 
+      echo "client_id connection_id ip route add x.y.z.w/mask via x.y.z.w"
+      return
+   fi
+   
+   # Safety check 3: Stop execution if this connection doesn't exist.
+   if [ ! -d ~/Fluidity_Server/client.$1/connection.$1.$2 ]; then
+      echo "Fluidity Connection $1.$2 does not exist"
+      return
+   fi
+   
+   # Safety check 4: Stop execution if this route is already in client
+   # list.
+   if [[ -e ~/Fluidity_Server/client.$1/connection.$1.$2/listOfClientRoutes.$1.$2.sh ]]; then
+
+      if cat ~/Fluidity_Server/client.$1/connection.$1.$2/listOfClientRoutes.$1.$2.sh | grep "sudo $3 $4 $5 $6 $7 $8"; then
+         echo "Route already exists in clientRoutes.$1.$2.sh"
+         return
+      fi
+   
+   fi
+   
+   if [[ ! -e ~/Fluidity_Server/client.$1/connection.$1.$2/listOfClientRoutes.$1.$2.sh ]]; then
+   
+      # Message to user.
+      echo "Creating clientRoutes.$1.$2.sh"
+   
+      # Add the route to the client list.
+      echo "sudo $3 $4 $5 $6 $7 $8" >> ~/Fluidity_Server/client.$1/connection.$1.$2/listOfClientRoutes.$1.$2.sh
+      
+      # Change permissions and make the script executable.
+      chmod 700 ~/Fluidity_Server/client.$1/connection.$1.$2/listOfClientRoutes.$1.$2.sh
+      
+   else
+   
+      # Add the route to the client list.
+      echo "sudo $3 $4 $5 $6 $7 $8" >> ~/Fluidity_Server/client.$1/connection.$1.$2/listOfClientRoutes.$1.$2.sh
+      
+   fi
+   
+}
+
+# Arguments: ($1), ($2), ($3), ($4), ($5), ($6), ($7), ($8)
+# $1: Fluidity Client (SSH) Connection ID.
+# $2: Fluidity Virtual Circuit (SSL) Connection ID.
+# $3: Fixed value: ip 
+# $4: Fixed value: route
+# $5: Fixed value: add
+# $6: IP network and subnet mask
+# $7: Fixed value: via
+# $8: Exit IP
+
+# Sourced Variables: NONE
+
+# Intershell File Variables in use: NONE
+
+# Global Variables in use: NONE
+
+# Generates: Nothing
+
+# Invokes Functions: NONE
+
+# Calls the script: NONE
+
+# Function Description: 
+removeClientRoute () {
+   
+   # Safety check 1: Number of arguments should be no less than 8.
+   if [ "$#" -ne 8 ]; then
+      echo "Illegal number of parameters"
+      return
+   fi
+   
+   # Safety check 2: Force a specific command syntax.
+   if ! [[ $3 == "ip" && $4 == "route" && $5 == "add" && $7 == "via" ]]; then
+      echo "Command should be in the form of:" 
+      echo "client_id connection_id ip route add x.y.z.w/mask via x.y.z.w"
+      return
+   fi
+   
+   # Safety check 3: Stop execution if this connection doesn't exist.
+   if [ ! -d ~/Fluidity_Server/client.$1/connection.$1.$2 ]; then
+      echo "Fluidity Connection $1.$2 does not exist"
+      return
+   fi
+   
+   # Safety check 4: Stop execution if this route is absent from client
+   # list.
+   if ! cat ~/Fluidity_Server/client.$1/connection.$1.$2/listOfClientRoutes.$1.$2.sh | grep "sudo $3 $4 $5 $6 $7 $8"; then
+      echo "Route does not exist in clientRoutes.$1.$2.sh"
+      return
+   fi
+   
+   # Remove the route from the client list.
+   grep -F -v "sudo $3 $4 $5 $6 $7 $8" \
+   ~/Fluidity_Server/client.$1/connection.$1.$2/listOfClientRoutes.$1.$2.sh > \
+   ~/Fluidity_Server/client.$1/connection.$1.$2/listOfClientRoutes.$1.$2.sh.tmp && \
+   mv ~/Fluidity_Server/client.$1/connection.$1.$2/listOfClientRoutes.$1.$2.sh.tmp \
+   ~/Fluidity_Server/client.$1/connection.$1.$2/listOfClientRoutes.$1.$2.sh
+   
 }
