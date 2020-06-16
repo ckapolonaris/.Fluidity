@@ -4,7 +4,7 @@
 # Script Name: Fluidity.sh
 #
 # Authors: Charalampos Kapolonaris & Vasilios Koutlas
-# Date : 25.01.2020
+# Date : 16.06.2020
 #
 # Description: Fluidity is a SOCAT SSL connection manager. It's based on
 # a server - client model and focuses on the creation and management
@@ -71,157 +71,159 @@
 #
 # Client Functions
 #
-# 1. Prelimenary Client Configuration
+# 1. Preliminary Client Configuration
 #		fluidityClientConfiguration
 # 2. Managing Internal Interfaces
 #		setInternalInterface
 #		removeInternalInterface
 
 
-# .Fluidity Complete Program Structure
+# The Complete .Fluidity Program Structure
 # 
 # 1. Fluidity Intershell Variables
-# 		setPingDelay
-#		getPingDelay
-#		setAllowExecution
-#		getAllowExecution
-#		setPort
-#		getPort
-#		setServerIsTerminated
-#		getServerIsTerminated
-#		setClientIsTerminated
-#		getClientIsTerminated
-#		setSleepPid
-#		getSleepPid
-#		setTerminationForcePing
-#		getTerminationForcePing
-#		setFluidityConnectionStatus
-#		getFluidityConnectionStatus
+# 		setPingDelay +
+#		getPingDelay +
+#		setAllowExecution +
+#		getAllowExecution +
+#		setPort +
+#		getPort +
+#		setServerIsTerminated +
+#		getServerIsTerminated +
+#		setClientIsTerminated +
+#		getClientIsTerminated +
+#		setSleepPid +
+#		getSleepPid +
+#		setTerminationForcePing +
+#		getTerminationForcePing +
+#		setFluidityConnectionStatus +
+#		getFluidityConnectionStatus + 16 functions
 # 2. Server Creation - Configuration Functions
 # 	2.1 Public Functions
-#		installFluidity
-#		reinstallFluidity
-#		mountFluidityServerFolder
+#		installFluidity +
+#		reinstallFluidity +
+#		mountFluidityServerFolder +
 # 	2.2 Private Functions
-#		fluidityServerConfiguration
-#		mainServerFolderCreation
-#		serverFolderBackboneCreation
+#		fluidityServerConfiguration +
+#		mainServerFolderCreation +
+#		serverFolderBackboneCreation + 6 functions
 # 3. Direct Client Creation - Configuration Functions
 # 	3.1 Public Functions
-#		fluidityClientConfiguration
+#		fluidityClientConfiguration + 1 function
 # 4. Client Management Functions
 # 	4.1 Public Functions
-#		addFluidityClient
-#		removeFluidityClient
+#		addFluidityClient +
+#		removeFluidityClient +
 # 	4.2 Private Functions
-#		fluidityRemoteClientConfiguration
-#		remoteSeekAndEncryptDaemon
+#		fluidityRemoteClientConfiguration +
+#		remoteSeekAndEncryptDaemon + 4 functions
 # 5. Connection Management Functions
 # 	5.1 Public Functions
-#		addFluidityConnection
-#		removeFluidityConnection
-#		renewSSLcerts
+#		addFluidityConnection +
+#		removeFluidityConnection +
+#		renewSSLcerts +
 # 	5.2 Private Functions
-#		internalSSLrenew
-#		installSSLcertificates
-#		reinstallSSLcerts
-#		clientFolderCreation
-#		clientSSLinstallation
-#		deleteSSLpair
-#		copyDoNotEncryptToken
-#		deleteDoNotEncryptToken
+#		internalSSLrenew +
+#		installSSLcertificates +
+#		reinstallSSLcerts +
+#		clientFolderCreation +
+#		clientSSLinstallation +
+#		deleteSSLpair +
+#		copyDoNotEncryptToken +
+#		deleteDoNotEncryptToken + 11 functions
 # 6. Fluidity Engine Functions
 # 	6.1 Public Functions
-#		runFluidity
-#		stopFluidity
+#		runFluidity +
+#		stopFluidity +
 # 	6.2 Private Functions
 #		6.2.1 Firewalling
-#			openPort
-#			closePort
-#			openTheTunnelInterfaces
-#			openTheLocalTunnelInterface
-#			openTheRemoteTunnelInterface
-#			closeTheLocalTunnelInterface
-#			closeTheRemoteTunnelInterface
+#			openPort +
+#			closePort +
+#			openTheTunnelInterfaces +
+#			openTheLocalTunnelInterface +
+#			openTheRemoteTunnelInterface +
+#			closeTheLocalTunnelInterface +
+#			closeTheRemoteTunnelInterface +
 #		6.2.2 Engine Administration
-#			terminationForcePing
-#			stopFluidityToRenewSSLcerts
+#			terminationForcePing +
+#			stopFluidityToRenewSSLcerts +
 #		6.2.3 Link Setup
-#			establishSOCATlink
+#			establishSOCATlink +
 #			6.2.3.1  Link State Information Administration
 #				6.2.3.1.1 Managing Static Information
-#					storeSOCATlinkStateInformation
-#					deleteSOCATlinkStateInformation
+#					storeSOCATlinkStateInformation +
+#					deleteSOCATlinkStateInformation +
 #				6.2.3.1.2 Managing Dynamic Information
-#					initilizeRunTimeVars
-#					destroyRunTimeVars
+#					initilizeRunTimeVars +
+#					destroyRunTimeVars +
 #			6.2.3.2 Server Setup
-#				runPersistentSOCATServer
-#				runSOCATserver
-#				runSerialSOCATserver
-#				runTUNnelSOCATserver
+#				runPersistentSOCATServer +
+#				runSOCATserver +
+#				runSerialSOCATserver +
+#				runTUNnelSOCATserver +
 #			6.2.3.3 Client Setup
-#				runPersistentSOCATClient
-#				runSOCATclient
-#				runSerialSOCATclient
-#				runTUNnelSOCATclient
+#				runPersistentSOCATClient +
+#				runSOCATclient +
+#				runSerialSOCATclient +
+#				runTUNnelSOCATclient +
 #				6.2.3.3.1 Client Administration
-#					checkForConnectionFolder
-#					isItEncryptedOnClient
-#					decryptClient
-#					encryptClient
+#					checkForConnectionFolderAndDecrypt +
+#					isItEncryptedOnClient +
+#					decryptClient +
+#					encryptClient +
 #		6.2.4 SSL Certificates Verification Functions
-#			checkIfTokenSlotFolderIsEmpty
-#			verifyThatSSLCertificatesExist
-#			doAClientServerMD5EquivalencyCheck
-#			doAClientServerSHA256EquivalencyCheck
+#			verifyThatTokenSlotFolderIsEmpty +
+#			verifyThatSSLCertificatesExist +
+#			doAClientServerMD5EquivalencyCheck +
+#			doAClientServerSHA256EquivalencyCheck +
 #		6.2.5 VPN Routing
-#			injectTheListOfFluidityConnectionRoutes
-#			injectTheListOfServerRoutes
-#			injectTheListOfClientRoutes
+#			injectTheListOfFluidityConnectionRoutes +
+#			injectTheListOfServerRoutes +
+#			injectTheListOfClientRoutes +
 #		6.2.6 Engine Reporting
-#			reportWhenLinkIsEstablished
-#			reportWhenFirewallRulesAreAdded
-#			reportWhenFirewallRulesAreRemoved 
+#			reportWhenLinkIsEstablished +
+#			reportWhenFirewallRulesAreAdded +
+#			reportWhenFirewallRulesAreRemoved +
 # 	6.3 Engine Auxillary Functions
 #		6.3.1 Public Functions
-#			forcePing
+#			forcePing + 39 functions
 # 7. Fluidity Connection Status Functions
 # 	7.1 Public Functions
-#		showLinkStatus
+#		showLinkStatus + 1 function
 # 8. General Auxillary Functions
 # 	8.1 Public Functions
-#		recallSSHidentity
-#		displaySerialDevices
-#		changeRemoteHostName
-#		findInterfaceFromIP
+#		recallSSHidentity +
+#		displaySerialDevices +
+#		changeRemoteHostName +
+#		findInterfaceFromIP +
 # 	8.2 Private Functions
-#		giveAnEntropyBoost
-#		checkFluidityFilesystemIntegrity
-#		checkLocalEntropy
-#		checkRemoteEntropy
-#		getNetstatConnectionStatus
-#		getTheRemotePort
-#		removeFluidityClientConfigInfoFromSSHConfig
+#		giveAnEntropyBoost +
+#		checkFluidityFilesystemIntegrity +
+#		checkLocalEntropy +
+#		checkRemoteEntropy +
+#		getNetstatConnectionStatus +
+#		getTheRemotePort +
+#		removeFluidityClientConfigInfoFromSSHConfig + 11 functions
 # 9. Managing Internal Interfaces
 # 	9.1 Public Functions
-#		setInternalInterface
-#		removeInternalInterface
+#		setInternalInterface + 
+#		removeInternalInterface + 2 functions
 # 10. VPN Routing
 # 	10.1 Public Functions
-#		addServerRoute
-#		removeServerRoute
-#		addClientRoute
-#		removeClientRoute
+#		addServerRoute +
+#		removeServerRoute +
+#		addClientRoute +
+#		removeClientRoute + 4 functions
 
+# 95 functions in total.
 
-# Quickfind tags
+# List of Quickfind tags:
 # 1. .Fluidity Flavour branching points: kzjFgtUz
-# 2. SSH calls to .Fluidity client system: heefhEKX
-# 3. SCP calls to .Fluidity client system: vvtSng7u
+# 2. .Fluidity does SSH to client machine: heefhEKX
+# 3. .Fluidity transfers files via SCP to client machine: vvtSng7u
 
-# Grep tags
+# List of GREP tags:
 # 1. Deduce the external interface IP from UFW SSH rule: HFBCvIa7h
+
 
 # 1. Fluidity Intershell Variables
 
@@ -668,12 +670,12 @@ EOF
       # Perform basic firewall configuration i.e.
          # a. Allow outgoing traffic.
          # b. Deny incoming traffic.
-         # c. Allow inbound SSH connections.
+         # c. Allow inbound SSH connections on port 22.
    # 6. (haveged OR rng-tools)
 
 fluidityServerConfiguration () {
 
-   # Enable Server IP forwarding
+   # Enable IP forwarding on Server
    sudo sysctl -w net.ipv4.ip_forward=1
 
    # Check for Internet availability
@@ -860,7 +862,7 @@ serverFolderBackboneCreation () {
       # Perform basic firewall configuration i.e.
          # a. Allow outgoing traffic.
          # b. Deny incoming traffic.
-         # c. Allow inbound SSH connections.
+         # c. Allow inbound SSH connections on port 22.
 
 fluidityClientConfiguration () {
    
@@ -905,7 +907,7 @@ fluidityClientConfiguration () {
    # Display a no internet access message.
    else
       echo -e 'Warning. No Internet access.' \
-      '\nTo proceed with the installation, please connect to the Internet.'
+      '\nProceeding with the installation requires an Internet connection.'
    fi
    
    mkdir ~/Fluidity_Client
@@ -938,7 +940,8 @@ fluidityClientConfiguration () {
 # 1. Text File (.txt): passphrase_$1.txt (8 character string)
 # 2. SSH Private Key (No Extension): client$1 (The SSH private key)
 # 3. SSH Public Key (.pub) File: client$1.pub
-# 4. Text File (.txt): basic_client_info.txt
+# 4. SSH configuration File (config): ~/.ssh/config
+# 5. Text File (.txt): basic_client_info.txt
    # Stores and contains:
    # 1. $server_IP_address
    # 2. $client_IP_address
@@ -954,8 +957,7 @@ fluidityClientConfiguration () {
 
 # Calls the script: NONE
 
-# Function Description: Create the SSH key, add it to the keyring and then
-# sent it to the remote host.
+# Function Description: Add a new .Fluidity client.
 addFluidityClient () {
 
    # Safety check 1: Check whether target client.[SSH_ID] already exists.
@@ -987,8 +989,15 @@ addFluidityClient () {
    else
       echo "Connectivity test to host $3 succeeded. Proceeding with client configuration."
    fi
+   
+   # Safety check 4: Stop execution if SSH is not active on client 
+   # machine.
+   if ! nmap $3 -PN -p ssh | grep open; then
+      echo "Activate SSH on target machine"
+      return
+   fi
 
-   # Safety check 4: Verify that local entropy is above target value 1000. 
+   # Safety check 5: Verify that local entropy is above target value 1000. 
    if [[ $(checkLocalEntropy) == 1 ]]; then
      echo "Server entropy is above 1000. Carrying on with addFluidityClient."
    else
@@ -996,7 +1005,7 @@ addFluidityClient () {
      return
    fi
    
-   # Safety check 5: Perform an overall Fluidity file structure
+   # Safety check 6: Perform an overall Fluidity file structure
    # integrity check.
    if [[ $(checkFluidityFilesystemIntegrity) == 1 ]]; then
       echo "Fluidity system file integrity test passed"
@@ -1049,8 +1058,13 @@ expect << EOF
       expect eof
 EOF
 
-   # Create an SSH configuration file, containing details for each
-   # SSH connection to .Fluidity clients.
+   # If not present, create an SSH configuration file in ~/.ssh
+   # This will contain (1/2):
+      # 1. "Host ": The IP address of the remote .Fluidity machine.
+      # 2. "IdentityFile ": The exact location of the identity file to 
+      # be used for the SSH connection with the specified host (client).
+      # 3. "Port ": Specify a random connection port to remote host. 
+       # (Added later in fluidityRemoteClientConfiguration).
    echo -e 'Host '$3'\n'\
    '  IdentityFile ~/.ssh/client.'$1 >> ~/.ssh/config
 
@@ -1606,9 +1620,10 @@ END_CAT
    # SSH remotely execute genSCRIPT_fluidityRemoteClientSSHConfiguration
    ssh $2@$1 'bash -s' < ~/Fluidity_Server/Generated_Scripts/genSCRIPT_fluidityRemoteClientSSHConfiguration.sh
    
-   # Add the random port number to .shh/config.
+   # Add the random port number to .shh/config (2/2).
+    # (First part in addFluidityClient)
    # From this point on, every ssh connection to this client will
-   # use this specific port number.
+   # use the specified port number.
    echo "   Port $random_ssh_port" >> ~/.ssh/config
 
    
@@ -6501,8 +6516,8 @@ getNetstatConnectionStatus () {
 
 # Calls the script: NONE
 
-# Function Description: Based on server port, retrieve the remote
-# machine port from netstat.
+# Function Description: Based on server port, extract the .Fluidity 
+# client port from netstat output.
 getTheRemotePort () {
 
    # Use netstat and pipe the output to grep. Grep will search the
@@ -6537,7 +6552,7 @@ getTheRemotePort () {
 
 # Calls the script: NONE
 
-# Function Description:
+# Function Description: Remove client information from ~/.ssh/config.
 removeFluidityClientConfigInfoFromSSHConfig () {
    
    grep -F -v "$(echo -e 'Host '$2'\n'\
