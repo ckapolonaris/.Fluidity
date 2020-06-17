@@ -4,7 +4,7 @@
 # Script Name: Fluidity.sh
 #
 # Authors: Charalampos Kapolonaris & Vasilios Koutlas
-# Date : 16.06.2020
+# Date : 17.06.2020
 #
 # Description: Fluidity is a SOCAT SSL connection manager. It's based on
 # a server - client model and focuses on the creation and management
@@ -1567,6 +1567,8 @@ EOF
             sudo ufw default allow outgoing
             sudo ufw default deny incoming
             
+            sudo ufw allow ssh
+            
             sudo ufw allow from $3 to any port $random_ssh_port proto tcp comment "HFBCvIa7h $1"
             
             sudo ufw status
@@ -1592,6 +1594,8 @@ EOF
             sudo ufw default allow outgoing
             sudo ufw default deny incoming
             
+            sudo ufw allow ssh
+            
             sudo ufw allow from $3 to any port $random_ssh_port proto tcp comment "HFBCvIa7h $1"
             
             sudo ufw status
@@ -1603,8 +1607,8 @@ END_CAT
       
    else
       
-      echo "sed -i '20s/.*/$(echo sudo ufw allow from $3 to any port $random_ssh_port proto tcp comment "\""HFBCvIa7h $1"\"")/' ~/Fluidity_Server/Generated_Scripts/genSCRIPT_fluidityRemoteClientFirewallConfiguration.sh" | bash -
-      echo "sed -i '45s/.*/$(echo sudo ufw allow from $3 to any port $random_ssh_port proto tcp comment "\""HFBCvIa7h $1"\"")/' ~/Fluidity_Server/Generated_Scripts/genSCRIPT_fluidityRemoteClientFirewallConfiguration.sh" | bash -
+      echo "sed -i '22s/.*/$(echo sudo ufw allow from $3 to any port $random_ssh_port proto tcp comment "\""HFBCvIa7h $1"\"")/' ~/Fluidity_Server/Generated_Scripts/genSCRIPT_fluidityRemoteClientFirewallConfiguration.sh" | bash -
+      echo "sed -i '49s/.*/$(echo sudo ufw allow from $3 to any port $random_ssh_port proto tcp comment "\""HFBCvIa7h $1"\"")/' ~/Fluidity_Server/Generated_Scripts/genSCRIPT_fluidityRemoteClientFirewallConfiguration.sh" | bash -
       
    fi
    
