@@ -3,16 +3,16 @@
 #
 # Script Name: Fluidity.sh
 #
-# Authors: Charalampos Kapolonaris & Vasilios Koutlas
-# Date : 17.06.2020
+# Charalampos Kapolonaris: Technical Lead
+# Vasilios Koutlas: Software Tester
 #
 # Description: Fluidity is a SOCAT SSL connection manager. It's based on
 # a server - client model and focuses on the creation and management
 # of SOCAT SSL connections for secure and encrypted communication.
-# More specifically, it can add - remove clients and create remove and
+# More specifically, it can add - remove clients and create, remove and
 # administer SOCAT SSL connections.
 #
-# Run Information: This script is run manually.
+# Execution Information: This script is executed manually.
 
 
 # This program is free software: you can redistribute it and/or modify
@@ -30,12 +30,12 @@
 
 
 # Since BASH lacks the feature of public and private interfaces, we
-# nominally define a set of functions, as the equivalent of public 
-# interfaces and another set as private interfaces. Below we present a 
-# list of Fluidity's public interfaces.
+# nominally define a set of functions, as the equivalent of a public 
+# interface and another set as the private interface. Below we present 
+# the list of .Fluidity's functions that comprise the public interface.
 
 
-# Fluidity Public Interface
+# .Fluidity Public Interface
 #
 # Server Functions
 # 
@@ -50,10 +50,10 @@
 #		addFluidityConnection
 #		removeFluidityConnection
 #		renewSSLcerts
-# 4. Fluidity Engine Functions
+# 4. .Fluidity Engine Functions
 #		runFluidity
 #		stopFluidity
-# 5. Fluidity Connection Status Functions
+# 5. .Fluidity Connection Status Functions
 #		showLinkStatus
 # 6. General Auxillary Functions
 #		recallSSHidentity
@@ -80,7 +80,7 @@
 
 # The Complete .Fluidity Program Structure
 # 
-# 1. Fluidity Intershell Variables
+# 1. .Fluidity Intershell Variables
 # 		setPingDelay +
 #		getPingDelay +
 #		setAllowExecution +
@@ -130,7 +130,7 @@
 #		deleteSSLpair +
 #		copyDoNotEncryptToken +
 #		deleteDoNotEncryptToken + 11 functions
-# 6. Fluidity Engine Functions
+# 6. .Fluidity Engine Functions
 # 	6.1 Public Functions
 #		runFluidity +
 #		stopFluidity +
@@ -186,7 +186,7 @@
 # 	6.3 Engine Auxillary Functions
 #		6.3.1 Public Functions
 #			forcePing + 39 functions
-# 7. Fluidity Connection Status Functions
+# 7. .Fluidity Connection Status Functions
 # 	7.1 Public Functions
 #		showLinkStatus + 1 function
 # 8. General Auxillary Functions
@@ -214,7 +214,7 @@
 #		addClientRoute +
 #		removeClientRoute + 4 functions
 
-# 95 functions in total.
+# Counting 95 functions in total.
 
 # List of Quickfind tags:
 # 1. .Fluidity Flavour branching points: kzjFgtUz
@@ -225,7 +225,7 @@
 # 1. Deduce the external interface IP from UFW SSH rule: HFBCvIa7h
 
 
-# 1. Fluidity Intershell Variables
+# 1. .Fluidity Intershell Variables
 
 
 # SET function for Intershell Variable: ping_delay
@@ -465,12 +465,12 @@ getFluidityConnectionStatus () {
 
 # Calls the script: NONE
 
-# Function Description: Fluidity first time setup utility. The
-# starting point to create a new Fluidity installation.
+# Function Description: .Fluidity first time setup utility. This
+# is the starting point to a new .Fluidity installation.
 installFluidity () {
 
    # First check: If ~/Fluidity_Server already exists then reinstall 
-   # Fluidity
+   # .Fluidity
    if [ -d ~/Fluidity_Server ]; then
       clear
       echo -e "WARNING! FLUIDITY SERVER FOLDER DETECTED!\n\n\n"
@@ -482,7 +482,7 @@ installFluidity () {
    fi
 
    # Looped user prompt: Ask the user whether he/she wants to proceed
-   # with Fluidity installation. 
+   # with a new .Fluidity installation. 
    while true; do
       clear
       echo -e \
@@ -535,14 +535,14 @@ installFluidity () {
 
 # Calls the script: NONE
 
-# Function Description: Fluidity reinstallation utility.
-# Install Fluidity upon an existing Fluidity 
-# installation. The old Fluidity data are completely erased.
+# Function Description: .Fluidity reinstallation utility.
+# Re-install .Fluidity on an existing .Fluidity 
+# installation. The previews installation is totally erased.
 
 reinstallFluidity () {
     
    # Looped user prompt: Ask the user whether he/she wants to proceed
-   # with Fluidity re-installation.
+   # with .Fluidity re-installation.
    while true; do
       echo -e \
       '\nWelcome to Fluidity reinstallation utility.'\
@@ -550,12 +550,12 @@ reinstallFluidity () {
       '\nType [yes]: To reinstall'\
       '\nType [no]: Cancel and exit back to terminal'\
       && read -p '_' choice
-      # CASE 1: YES - Re-install Fluidity.
+      # CASE 1: YES - Re-install .Fluidity.
       case $choice in
       [yY] | [yY][Ee][Ss] )
          echo -e "\nReinstalling Fluidity"
          
-         # Wipe out anything related to a previous Fluidity 
+         # Wipe out anything related to a previous .Fluidity 
          # installation.
          cd ~
          sudo umount ~/Fluidity_Server
@@ -597,8 +597,8 @@ reinstallFluidity () {
 
 # Calls the script: NONE
 
-# Function Description: Public function that mounts Fluidity's server,
-# home folder, after a reboot.
+# Function Description: Mount the .Fluidity server folder after a 
+# potential reboot.
 mountFluidityServerFolder () {
    
    local pass
@@ -634,7 +634,7 @@ EOF
 
    cd Fluidity_Server
    
-   # Enable IP forwarding after a potential reboot
+   # Enable the IP forwarding after a potential reboot.
    
    sudo sysctl -w net.ipv4.ip_forward=1
    
@@ -661,7 +661,7 @@ EOF
 # Calls the script: NONE
 
 # Function Description: Verify the existance and if necessary install
-# the following list of essential Fluidity utilities.
+# the following list of programs.
    # 1. (SOCAT)
    # 2. (ecryptfs-utils) 
    # 3. (expect) 
@@ -740,7 +740,7 @@ fluidityServerConfiguration () {
 
 # Calls the script: NONE
 
-# Function Description: Create and encrypt the Fluidity_Server folder 
+# Function Description: Create and encrypt the .Fluidity_Server folder 
 # with ecryptfs-utils, by using a user defined encryption password.
 mainServerFolderCreation () {
 
@@ -753,7 +753,7 @@ mainServerFolderCreation () {
    # FLUIDITY -- Create the main folder
    mkdir ~/Fluidity_Server
 
-   # Encrypt the main folder with ecryptfs-utils and the following
+   # Encrypt the main folder with ecryptfs-utils and use the following
    # settings: 
       # Encryption cypher: AES
       # Key size: 256 bits
@@ -801,11 +801,11 @@ EOF
 
 # Calls the script: NONE
 
-# Function Description: Create the main Fluidity server folder structure 
+# Function Description: Create the main .Fluidity server folder structure 
 # (Fluidity_Server)
 serverFolderBackboneCreation () {
 
-   # Create "Generated_Scripts" folder to contain Fluidity's generated scripts
+   # Create "Generated_Scripts" folder to contain .Fluidity's generated scripts
    mkdir ~/Fluidity_Server/Generated_Scripts
 
    # Create the main SSH credentials storage folder
@@ -852,7 +852,7 @@ serverFolderBackboneCreation () {
 # Calls the script: NONE
 
 # Function Description: Verify the existance and if necessary install
-# the following list of essential utilities.
+# the following list of programs.
    # 1. (SOCAT)
    # 2. (ecryptfs-utils) 
    # 3. (expect) 
@@ -912,7 +912,7 @@ fluidityClientConfiguration () {
    
    mkdir ~/Fluidity_Client
    
-   # Restart ssh to make changes take effect.
+   # Restart ssh for the changes to take effect.
    sudo service ssh restart
    
 }
@@ -957,7 +957,7 @@ fluidityClientConfiguration () {
 
 # Calls the script: NONE
 
-# Function Description: Add a new .Fluidity client.
+# Function Description: Add a .Fluidity client.
 addFluidityClient () {
 
    # Safety check 1: Check whether target client.[SSH_ID] already exists.
@@ -1005,7 +1005,7 @@ addFluidityClient () {
      return
    fi
    
-   # Safety check 6: Perform an overall Fluidity file structure
+   # Safety check 6: Perform an overall .Fluidity file structure
    # integrity check.
    if [[ $(checkFluidityFilesystemIntegrity) == 1 ]]; then
       echo "Fluidity system file integrity test passed"
@@ -1103,7 +1103,7 @@ EOF
    changeRemoteHostName "fluidity_client_$1" $3 $5
    
    # Invoke fluidityRemoteClientConfiguration to
-   # install Fluidity's essential programs and basic firewall
+   # install .Fluidity's essential programs and basic firewall
    # configuration to client machine.
    fluidityRemoteClientConfiguration $3 $5 $2 $1
    
@@ -1139,7 +1139,7 @@ EOF
 # 1. genSCRIPT_eraseClientData.sh, with args, $client_username, ($1), $server_IP_address
 # in: ~/Fluidity_Server/Generated_Scripts
 
-# Function Description: 
+# Function Description: Remove a .Fluidity client.
 removeFluidityClient () {
    
    # Source the variables:
@@ -1353,7 +1353,7 @@ removeFluidityClient () {
    
    # Act upon the grep-ed outcome from target client. 
    # If client returns "genSCRIPT_eraseClientData.sh reports SUCCESS"
-   # then, proceed with removing Fluidity Server client data. 
+   # then, proceed with removing .Fluidity Server client data. 
    if echo "$eraseClientData_outcome" | grep -q "genSCRIPT_eraseClientData.sh reports SUCCESS"; then
 
       # Remove client's identity.
@@ -1363,7 +1363,7 @@ removeFluidityClient () {
       rm ~/.ssh/client.$1
       rm ~/.ssh/client.$1.pub
       
-      # Delete client information stored in Fluidity Vault.
+      # Delete client information stored in .Fluidity Vault.
       rm ~/Fluidity_Server/SSH_Vault/SSH_Keys/client.$1
       rm ~/Fluidity_Server/SSH_Vault/SSH_Keys/client.$1.pub
       
@@ -1376,7 +1376,7 @@ removeFluidityClient () {
       rm -r ~/Fluidity_Server/SSL_Cert_Vault/client_con.$1.*
       rm -r ~/Fluidity_Server/SSL_Cert_Vault/server_con.$1.*
       
-      # Remove the former Fluidity client from ~/.ssh/known_hosts.
+      # Remove the former .Fluidity client from ~/.ssh/known_hosts.
       ssh-keygen -R $client_IP_address
       rm ~/.ssh/known_hosts.old
       
@@ -1391,7 +1391,7 @@ removeFluidityClient () {
    else
       
       # Display an operation failed message that follows the 
-      # messages received from target Fluidity client.
+      # messages received from target .Fluidity client.
       echo "Client $1 removal failed."
       echo "Manually check the Fluidity server and client. Something went wrong"
       
@@ -1437,7 +1437,7 @@ removeFluidityClient () {
 # Function Description: 
    # 1. Create the main folder structure  (~/Fluidity_Client)
    # 2. Verify the existance and if necessary install
-   # the following set of utilities essential to Fluidity's operation 
+   # the following essential set of utilities: 
       # 1. (socat)
       # 2. (ecryptfs-utils) 
       # 3. (expect)
@@ -1625,7 +1625,7 @@ END_CAT
    ssh $2@$1 'bash -s' < ~/Fluidity_Server/Generated_Scripts/genSCRIPT_fluidityRemoteClientSSHConfiguration.sh
    
    # Add the random port number to .shh/config (2/2).
-    # (First part in addFluidityClient)
+    # (First part located in addFluidityClient)
    # From this point on, every ssh connection to this client will
    # use the specified port number.
    echo "   Port $random_ssh_port" >> ~/.ssh/config
@@ -1659,7 +1659,7 @@ END_CAT
 # Function Description: Install and activate FLdaemon_SeekAndEncrypt.sh 
 # into target system. The purpose of this daemon is to ensure that no 
 # ~/Fluidity_Client/connection.[SSH_ID.SSL_ID] folder remains decrypted in the 
-# absence of a Fluidity / SOCAT active connection. 
+# absence of a .Fluidity / SOCAT active connection. 
 remoteSeekAndEncryptDaemonInstallation () {
 
    # Encryption immunity token:
@@ -1695,17 +1695,17 @@ remoteSeekAndEncryptDaemonInstallation () {
    #  Thus, ~/Fluidity_Client/connection.[SSH_ID.SSL_ID] 
    #  folder acquires encrpytion immunity, when is scanned by 
    #  FLdaemon_SeekAndEncrypt.sh AND SOCAT connection.[SSH_ID.SSL_ID] to 
-   #  Fluidity Server is closed.
+   #  .Fluidity Server is closed.
    
    #  FALSE: The digital padlock CLOSES:
    #  Thus, ~/Fluidity_Client/connection.[SSH_ID.SSL_ID]
    #  folder loses its encryption immunity when scanned by 
    #  FLdaemon_SeekAndEncrypt.sh AND SOCAT connection.[SSH_ID.SSL_ID] to 
-   #  Fluidity Server is closed.
+   #  .Fluidity Server is closed.
 
 
    # Location that the encryption immunity token is stored and copied to 
-   # Fluidity client when required.
+   # .Fluidity client when required.
    mkdir ~/Fluidity_Server/client.$3/do_not_encrypt_token
 
    # Keep the folder filename simple: 
@@ -1735,7 +1735,7 @@ remoteSeekAndEncryptDaemonInstallation () {
    # A HASHED key is generated by using function openssl enc with $seal_1 
    # and seal_2 passwords. 
    # The hashed key is subsequantly embedded to FLdaemon_SeekAndEncrypt.sh, 
-   # a client specific daemon script, installed to each Fluidity client. 
+   # a client specific daemon script, installed to each .Fluidity client. 
    
    # Based on both passwords, create the corrensponding hash.
    local client_hashed_key=$(echo $seal_1 \
@@ -2034,8 +2034,8 @@ remoteSeekAndEncryptDaemonInstallation () {
 
 
 # Arguments: ($1), ($2)
-# $1: Fluidity Client (SSH) Connection ID.
-# $2: Fluidity Virtual Circuit (SSL) Connection ID. 
+# $1: .Fluidity Client (SSH) Connection ID.
+# $2: .Fluidity Virtual Circuit (SSL) Connection ID. 
 
 # Sourced Variables:
 # 1. ~/Fluidity_Server/client.$SSH_ID/basic_client_info.txt
@@ -2056,7 +2056,7 @@ remoteSeekAndEncryptDaemonInstallation () {
 
 # Calls the script: NONE
 
-# Function Description: Add a Fluidity connection to target client.
+# Function Description: Add a .Fluidity connection to target client.
    
 addFluidityConnection () {
    
@@ -2091,7 +2091,7 @@ addFluidityConnection () {
       recallSSHidentity $1
    fi
    
-   # Safety check 4: Perform a Fluidity file integrity check.
+   # Safety check 4: Perform a .Fluidity file integrity check.
    if [[ $(checkFluidityFilesystemIntegrity) == 1 ]]; then
       echo "Fluidity system file integrity test passed"
    else
@@ -2106,8 +2106,8 @@ addFluidityConnection () {
 }
 
 # Arguments: ($1), ($2)
-# $1: Fluidity Client (SSH) Connection ID.
-# $2: Fluidity Virtual Circuit (SSL) Connection ID. 
+# $1: .Fluidity Client (SSH) Connection ID.
+# $2: .Fluidity Virtual Circuit (SSL) Connection ID. 
 
 # Sourced Variables:
 # 1. ~/Fluidity_Server/client.$SSH_ID/basic_client_info.txt
@@ -2126,8 +2126,7 @@ addFluidityConnection () {
 
 # Calls the script: NONE
 
-# Function Description: Delete a Fluidity connection, for a given 
-# Connection ID, on both server and client.
+# Function Description: Remove a .Fluidity connection from target client.
 
 removeFluidityConnection () {
 
@@ -2163,8 +2162,8 @@ removeFluidityConnection () {
 }
 
 # Arguments: ($1), ($2)
-# $1: Fluidity Client (SSH) Connection ID.
-# $2: Fluidity Virtual Circuit (SSL) Connection ID.
+# $1: .Fluidity Client (SSH) Connection ID.
+# $2: .Fluidity Virtual Circuit (SSL) Connection ID.
 
 # Sourced Variables: 
 # 1. ~/Fluidity_Server/client.$1/connection.$1.$2/link_information.txt
@@ -2202,11 +2201,11 @@ removeFluidityConnection () {
 # Calls the script: NONE
 
 # Function Description: Substitute the existing SSL certificates.
-# This function renews the SSL certificates, for a target Fluidity
+# This function renews the SSL certificates, for a target .Fluidity
 # connection.[SSH_ID.SSL_ID] and deals with three main scenarios:
 # 1st scenario: Renew the SSL certificates on an active link.
 # 2nd scenario: Renew the SSL certificates on an inactive link.
-# 3rd scenatio: Wrong input.
+# 3rd scenatio: Return warning for a wrong input.
 
 renewSSL () {
    
@@ -2247,20 +2246,20 @@ renewSSL () {
       
       
       # Good scenario: Netstat reports that connection.[SSH_ID.SSL_ID]
-      # is "ESTABLISHED" AND Fluidity is in "ACTIVE" state.
+      # is "ESTABLISHED" AND .Fluidity is in "ACTIVE" state.
       if [ $(getNetstatConnectionStatus $server_listening_port) == "ESTABLISHED" ] && \
       [ $(getFluidityConnectionStatus $fluidity_connection_ID) == "ACTIVE" ]; then
-         # Information message: Report to user that Fluidity will be 
+         # Information message: Report to user that .Fluidity will be 
          # paused and resumed in order to perform SSL substitution.
          echo "Fluidity connection.$1.$2 is in ACTIVE state. Fluidity will be paused and resumed."
-      # Not so good scenario: Client is lost. Fluidity is in "PINGING" 
+      # Not so good scenario: Client is lost. .Fluidity is in "PINGING" 
       # state.
       elif [ $(getFluidityConnectionStatus $fluidity_connection_ID) == "PINGING" ]; then
          # Information message: Report to user that SSL substitution
          # will not be performed, due to a lost client.
          echo "Fluidity connection.$1.$2 is in PINGING state. Canceling the SSL certificate renewal process."
          return
-      # An exceptional scenario: Fluidity connection is DOWN,
+      # An exceptional scenario: .Fluidity connection is DOWN,
       # but there is a link_information.txt file. 
       elif [ -f ~/Fluidity_Server/client.$1/connection.$1.$2/link_information.txt ]; then
          echo "Fluidity connection.$1.$2 is DOWN, but we found a link_information file."
@@ -2337,7 +2336,7 @@ renewSSL () {
 
 
 # Arguments: ($1), ($2)
-# $1: Fluidity Connection ID [SSH_ID.SSL_ID] 
+# $1: .Fluidity Connection ID [SSH_ID.SSL_ID] 
 
 # Sourced Variables:
 # 1. ~/Fluidity_Server/client.$1/basic_client_info.txt
@@ -2362,8 +2361,8 @@ renewSSL () {
 
 # Calls the script: NONE
 
-# Function Description: Do an SSL renew on an inactive Fluidity 
-# connection.
+# Function Description: Renew the SSL certificates on an inactive 
+# .Fluidity connection.
 
 inactiveLinkInternalSSLrenew () {
    
@@ -2392,7 +2391,7 @@ inactiveLinkInternalSSLrenew () {
 }
 
 # Arguments: ($1)
-# $1: Fluidity Connection ID [SSH_ID.SSL_ID] 
+# $1: .Fluidity Connection ID [SSH_ID.SSL_ID] 
 
 # Sourced Variables:
 # 1. ~/Fluidity_Server/client.$1/connection.$1.$2/link_information.txt
@@ -2432,8 +2431,8 @@ inactiveLinkInternalSSLrenew () {
 
 # Calls the script: NONE
 
-# Function Description: Do an SSL renew on an active Fluidity 
-# connection.
+# Function Description: Renew the SSL certificates on an active 
+# .Fluidity connection.
 
 activeLinkInternalSSLrenew () {
    
@@ -2486,7 +2485,7 @@ activeLinkInternalSSLrenew () {
    
       # Certificate reinstallation is done. 
       # Re-establish the SOCAT link. Based on link_information.txt
-      # start Fluidity with the proper Fluidity flavour choice.
+      # start .Fluidity with the proper .Fluidity flavour choice.
       
       # kzjFgtUz
       # For a Serial link
@@ -2517,7 +2516,7 @@ activeLinkInternalSSLrenew () {
 }
 
 # Arguments: ($1), ($2), ($3), ($4)
-# $1: Fluidity Connection ID [SSH_ID.SSL_ID] 
+# $1: .Fluidity Connection ID [SSH_ID.SSL_ID] 
 # $2: Client IP address.
 # $3: Client Username.
 # $4: Server IP address.
@@ -2548,8 +2547,8 @@ activeLinkInternalSSLrenew () {
 
 # Calls the script: NONE
 
-# Function Description: Create and install the SSL certificates on both
-# server and client. 
+# Function Description: Create and install a new SSL certificate pair
+# for the target .Fluidity connection. 
 installSSLcertificates () {
 
    # Variable declarations
@@ -2562,15 +2561,15 @@ installSSLcertificates () {
    # Extract server's username from environment variable: $USER.
    local server_username="$USER"
 
-   # Derive the array index from Fluidity ID
+   # Derive the array index from .Fluidity ID
    local array_index=$(expr ${1#*.} - 1)
    
-   # Derive the SSH ID from Fluidity ID
+   # Derive the SSH ID from .Fluidity ID
    local SSH_ID=${1%.*}
    
    # Use the ~/Fluidity_Server folder to temporary store the SSL 
    # certificates, perform the subsequent file operations and, then, 
-   # move everything to the corresponding Fluidity connection data and
+   # move everything to the corresponding .Fluidity connection data and
    # Vault folders.
    cd ~/Fluidity_Server
 
@@ -2611,7 +2610,7 @@ installSSLcertificates () {
 
    # Create the folder structure on server's side
 
-   # connection[SSH_ID.SSL_ID]: The Fluidity connection folder that will
+   # connection[SSH_ID.SSL_ID]: The .Fluidity connection folder that will
    # contain the entirety of the relevant connection files for
    # the specific SOCAT SSL link. 
    mkdir ~/Fluidity_Server/client.$SSH_ID/connection.$1 
@@ -2652,7 +2651,7 @@ installSSLcertificates () {
    
    # Pipe c_password[$array_index] into openssl enc function and use 
    # c_bogus_password[$array_index] to generate the hash to be embedded 
-   # into the dynamically Fluidity connection client genSCRIPT.
+   # into the dynamically .Fluidity connection client genSCRIPT.
    # ~/Fluidity_Server/client.[SSH_ID]/connection.[SSH_ID.SSL_ID]/
    # genSCRIPT_client.[SSH_ID.SSL_ID].sh
    echo ${c_password[$array_index]} | \
@@ -2716,7 +2715,7 @@ EOF
 }
 
 # Arguments: ($1), ($2), ($3), ($4)
-# $1: Fluidity Connection ID [SSH_ID.SSL_ID] 
+# $1: .Fluidity Connection ID [SSH_ID.SSL_ID] 
 # $2: Client IP address.
 # $3: Client Username.
 # $4: Server IP address.
@@ -2746,8 +2745,8 @@ EOF
 
 # Calls the script: NONE
 
-# Function Description: Create and reinstall the SSL certificates on both
-# server and client. 
+# Function Description: Create and re-install an SSL certificate pair
+# for the target .Fluidity connection. 
 reinstallSSLcerts () {
 
    # Variable declarations
@@ -2760,15 +2759,15 @@ reinstallSSLcerts () {
    # Extract server's username from environment variable: $USER.
    local server_username="$USER"
 
-   # Derive the array index from Fluidity ID
+   # Derive the array index from .Fluidity ID
    local array_index=$(expr ${1#*.} - 1)
    
-   # Derive the SSH ID from Fluidity ID
+   # Derive the SSH ID from .Fluidity ID
    local SSH_ID=${1%.*}
    
    # Use the ~/Fluidity_Server folder to temporary store the SSL 
    # certificates, perform the subsequent file operations and, then, 
-   # move everything to the corresponding Fluidity connection data and
+   # move everything to the corresponding .Fluidity connection data and
    # Vault folders.
    cd ~/Fluidity_Server
 
@@ -2831,7 +2830,7 @@ reinstallSSLcerts () {
 
    # Pipe c_password[$array_index] into openssl enc function and use 
    # c_bogus_password[$array_index] to generate the hash to be embedded 
-   # into the dynamically Fluidity connection client genSCRIPT.
+   # into the dynamically .Fluidity connection client genSCRIPT.
    # ~/Fluidity_Server/client.[SSH_ID]/connection.[SSH_ID.SSL_ID]/
    # genSCRIPT_client.[SSH_ID.SSL_ID].sh
    echo ${c_password[$array_index]} | \
@@ -2896,7 +2895,7 @@ EOF
 }
 
 # Arguments: ($1), ($2), ($3), ($4)
-# $1: Fluidity Connection ID [SSH_ID.SSL_ID]
+# $1: .Fluidity Connection ID [SSH_ID.SSL_ID]
 # $2: The folder encryption password
 # $3: Client IP.
 # $4: Client Username.
@@ -2960,7 +2959,7 @@ clientFolderCreation () {
 }
 
 # Arguments: ($1), ($2), ($3), ($4)
-# $1: Fluidity Connection ID [SSH_ID.SSL_ID]
+# $1: .Fluidity Connection ID [SSH_ID.SSL_ID]
 # $2: Client certificate password.
 # $3: Client IP address.
 # $4: Client Username.
@@ -2989,14 +2988,14 @@ clientFolderCreation () {
 # SOCAT requires the creation of both the SSL private keys (.key) and 
 # and self-signed public certificates (.crt) to happen locally on client
 # machine.
-# 1. Access the Fluidity connection folder "connection.[SSH_ID.SSL_ID]".
+# 1. Access the .Fluidity connection folder "connection.[SSH_ID.SSL_ID]".
 # 2. Execute openssl genpkey and produce the private key (.key).
 # 3. Execute openssl req and produce the self-signed certificate (.crt).
 # 4. Merge the (.key) and (.crt) files to produce a (.pem) file.
 # 5. Change permissions on (.key) and (.pem) files.
 # 6. Use sshpass to send the (.crt) and (.pem) files to server.
 # 7. Delete the (.key) and (.crt) files and keep only the (.pem) file
-# into Fluidity connection folder "connection.[SSH_ID.SSL_ID]".
+# into .Fluidity connection folder "connection.[SSH_ID.SSL_ID]".
 
 clientSSLinstallation () {
   
@@ -3046,7 +3045,7 @@ clientSSLinstallation () {
 }
 
 # Arguments: ($1)
-# $1: Fluidity Connection ID [SSH_ID.SSL_ID] 
+# $1: .Fluidity Connection ID [SSH_ID.SSL_ID] 
 
 # Sourced Variables:
 # 1. ~/Fluidity_Server/client.$SSH_ID/basic_client_info.txt
@@ -3073,7 +3072,7 @@ clientSSLinstallation () {
 
 deleteSSLpair () {
    
-   # Derive SSH ID from Fluidity ID
+   # Derive SSH ID from .Fluidity ID
    local SSH_ID=${1%.*}
    
    # Source the following variables:
@@ -3118,7 +3117,7 @@ deleteSSLpair () {
 }
 
 # Arguments: ($1), ($2), ($3)
-# $1: Fluidity Connection ID [SSH_ID.SSL_ID]
+# $1: .Fluidity Connection ID [SSH_ID.SSL_ID]
 # $2: Client IP address.
 # $3: Client Username.
 
@@ -3140,11 +3139,11 @@ deleteSSLpair () {
 # Function Description:
 # 1. Generate genSCRIPT_purgeDoNotEncryptToken.sh
 # 2. Delete any possible remaining encryption immunity tokens from 
-# target client machine.
+# the target client machine.
 # 3. Securely copy the encryption immunity token to client machine.
 copyDoNotEncryptToken() {
    
-   # Derive the SSH ID from Fluidity ID
+   # Derive the SSH ID from .Fluidity ID
    local SSH_ID=${1%.*}
    
    # Generate genSCRIPT_purgeDoNotEncryptToken.sh and store it in
@@ -3163,7 +3162,7 @@ copyDoNotEncryptToken() {
    ssh $3@$2 'bash -s' < ~/Fluidity_Server/Generated_Scripts/genSCRIPT_purgeDoNotEncryptToken.sh $1
    
    # vvtSng7u
-   # Securely copy do_not_encrypt_token to target Fluidity client in
+   # Securely copy do_not_encrypt_token to target .Fluidity client in
    # folder ~/Fluidity_Client/connection.[SSH_ID.SSL_ID]/tokenSlot
    scp ~/Fluidity_Server/client.$SSH_ID/do_not_encrypt_token/* \
     $3@$2:Fluidity_Client/connection.$1/tokenSlot
@@ -3171,7 +3170,7 @@ copyDoNotEncryptToken() {
 }
 
 # Arguments: ($1), ($2), ($3)
-# $1: Fluidity Connection ID [SSH_ID.SSL_ID]
+# $1: .Fluidity Connection ID [SSH_ID.SSL_ID]
 # $2: Client IP address.
 # $3: Client Username.
 
@@ -3195,7 +3194,7 @@ copyDoNotEncryptToken() {
 # 2. Delete the encryption immunity token from target client machine.
 deleteDoNotEncryptToken () {
    
-   # Derive the SSH ID from Fluidity ID
+   # Derive the SSH ID from .Fluidity ID
    local SSH_ID=${1%.*}
    
    # Generate genSCRIPT_purgeDoNotEncryptToken.sh and store it in
@@ -3215,14 +3214,14 @@ deleteDoNotEncryptToken () {
    
 }
 
-# 6. Fluidity Engine Functions
+# 6. .Fluidity Engine Functions
 # 6.1 Public Functions
 
 
 # Arguments:
 # $1: Your Fluidity flavour choice [Can be: "-s" serial or "-t" tunnel]
-# $2: Fluidity Client (SSH) Connection ID.
-# $3: Fluidity Virtual Circuit (SSL) Connection ID.
+# $2: .Fluidity Client (SSH) Connection ID.
+# $3: .Fluidity Virtual Circuit (SSL) Connection ID.
 # $4: Server Listening Port
 # $5: CASE A: [For $1="-s"] The Server Serial Interface
 #     CASE B: [For $1="-t"] Server's tunnel interface IP
@@ -3291,7 +3290,7 @@ runFluidity () {
    fi
    
    # kzjFgtUz
-   # Safety check 4: Check whether target Fluidity connection is
+   # Safety check 4: Check whether target .Fluidity connection is
    # ACTIVE. If not, then take the precautionary step to delete any
    # state information file, caused from an adnormal shutdown.
    if [[ $(getNetstatConnectionStatus $4) == "ESTABLISHED" ]]\
@@ -3306,7 +3305,7 @@ runFluidity () {
          return
       fi
    
-   # Precautionary action 1: Fluidity server abnormally shut down while 
+   # Precautionary action 1: .Fluidity server abnormally shut down while 
    # a SSL substitution was in progress. Delete the previous state 
    # information and complete the substitution.
    elif [[ $(getFluidityConnectionStatus) == SSL_TERMINATING ]]\
@@ -3406,7 +3405,7 @@ runFluidity () {
 }
 
 # Arguments: ($1)
-# $1: Fluidity Client (SSH) Connection ID.
+# $1: .Fluidity Client (SSH) Connection ID.
 # $2: Fluidity Virtual Circuit (SSL) Connection ID.
 
 # Sourced Variables:
@@ -3457,12 +3456,12 @@ runFluidity () {
 
 # Calls the script: NONE
 
-# Function Description: Stop FLUIDITY for a specific connection
+# Function Description: Stop .Fluidity for a specific connection
 # ID.
 
 stopFluidity () {
 
-   # Derive the Fluidity ID
+   # Derive the .Fluidity ID
    local fluidity_id=$(echo $1.$2)
 
    # Safety check 1: Check whether targer connection exists.
@@ -3508,7 +3507,7 @@ stopFluidity () {
       source ~/Fluidity_Server/client.$1/connection.$1.$2/link_information.txt
    fi
 
-   # Fluidity Finite State Machine 
+   # .Fluidity Finite State Machine 
    # State change to: TERMINATING
    setFluidityConnectionStatus $fluidity_id "TERMINATING"
    # Send a termination signal to both runPersistentSOCATClient and 
@@ -3523,7 +3522,7 @@ stopFluidity () {
    if [[ $(getNetstatConnectionStatus $port) == "ESTABLISHED" ]]; then
 
          # kzjFgtUz
-         # For Fluidity -t
+         # For .Fluidity -t
          # Delete the firewall rules that allow traffic through the
          # client - server tunnel interfaces before the connection ends.
          if [[ "$fluidity_flavour_choice" == -t ]]; then
@@ -3556,7 +3555,7 @@ stopFluidity () {
    else 
       
       # Safety Check 3: Invoke terminationForcePing
-      # Here, we cover the possibility that Fluidity lost its client, thus
+      # Here, we cover the possibility that .Fluidity lost its client, thus
       # runPersistentSOCATClient is currently in SLEEPING state and is 
       # having an active sleeping process that should first be terminated, 
       # before folder runTimeVars is erased.
@@ -3577,7 +3576,7 @@ stopFluidity () {
    echo "terminationForcePing is: $(getTerminationForcePing $fluidity_id)"
       if [[ $(getServerIsTerminated $fluidity_id) -eq 1 && $(getClientIsTerminated $fluidity_id) -eq 1 && $(getTerminationForcePing $fluidity_id) -ne 0 ]]; then
          
-         # Fluidity Finite State Machine 
+         # .Fluidity Finite State Machine 
          # State change to: TERMINATED
          setFluidityConnectionStatus $fluidity_id "TERMINATED"
          
@@ -3597,7 +3596,7 @@ stopFluidity () {
          
       else
       
-         # Fluidity Finite State Machine 
+         # .Fluidity Finite State Machine 
          # State change to: TERMINATION PENDING
          setFluidityConnectionStatus $fluidity_id "TERMINATION_PENDING"
          
@@ -3620,7 +3619,7 @@ stopFluidity () {
 }
 
 
-# 6. Fluidity Engine Functions
+# 6. .Fluidity Engine Functions
 # 6.2 Private Functions
 # 6.2.1 Firewalling
 
@@ -3641,7 +3640,7 @@ stopFluidity () {
 # Calls the script: NONE
 
 # Function Description: Instruct the Uncomplicated Firewall (UFW) to 
-# ALLOW traffic for the requested SOCAT server listening port.
+# allow traffic (create ALLOW rule) through the SOCAT listening port.
 
 openPort () {
    
@@ -3666,7 +3665,7 @@ openPort () {
 # Calls the script: NONE
 
 # Function Description: Instruct the Uncomplicated Firewall (UFW) to 
-# delete the ALLOW rule regarding the requested SOCAT listening port.
+# deny the traffic (delete ALLOW rule) through the SOCAT listening port.
 
 closePort () {
    
@@ -3676,11 +3675,11 @@ closePort () {
 }
 
 # Arguments: ($1), ($2), ($3)
-# $1: Fluidity Connection ID [SSH_ID.SSL_ID]
+# $1: .Fluidity Connection ID [SSH_ID.SSL_ID]
 # $2: Server's IP address
 # $3: Server Listening Port
 # $4: Client's IP address
-# $5: Fluidity Flavour
+# $5: .Fluidity Flavour
 
 # Sourced Variables: NONE
 
@@ -3770,7 +3769,7 @@ openTheLocalTunnelInterface () {
 }
 
 # Arguments: ($1), ($2)
-# $1: Fluidity Client (SSH) Connection ID.
+# $1: .Fluidity Client (SSH) Connection ID.
 # $2: Client's tunnel interface IP
 
 # Sourced Variables:
@@ -3838,7 +3837,7 @@ EOF
 }
 
 # Arguments: ($1)
-# $1: Fluidity Client (SSH) Connection ID.
+# $1: .Fluidity Client (SSH) Connection ID.
 # $2: Clients's tunnel interface IP
 
 # Sourced Variables: NONE
@@ -3928,13 +3927,13 @@ EOF
 }
 
 
-# 6. Fluidity Engine Functions
+# 6. .Fluidity Engine Functions
 # 6.2 Private Functions
 # 6.2.2 Engine Administration
 
 
 # Arguments: ($1) 
-# $1. Fluidity Connection ID [SSH_ID.SSL_ID]
+# $1. .Fluidity Connection ID [SSH_ID.SSL_ID]
 
 # Sourced Variables: NONE
 
@@ -4001,7 +4000,7 @@ terminationForcePing () {
 }
 
 # Arguments: ($1)
-# $1. Fluidity Connection ID [SSH_ID.SSL_ID]
+# $1. .Fluidity Connection ID [SSH_ID.SSL_ID]
 
 # Sourced Variables:
 # 1. ~/Fluidity_Server/client.$SSH_ID/connection.$1/link_information.txt
@@ -4046,14 +4045,14 @@ terminationForcePing () {
 
 # Calls the script: NONE
 
-# Function Description: A special stopFluidity called only by 
+# Function Description: stopFluidity special case called only by 
 # renewSSLcertificates when a SSL substitution is requested. The 
-# difference from normal stopFluidity is the absence of functions
+# difference from normal stopFluidity is the absence of
 # deleteSOCATlinkStateInformation and closePort.
 
 stopFluidityToRenewSSLcerts () {
 
-   # Derive the SSH ID from Fluidity ID
+   # Derive the SSH ID from .Fluidity ID
    local SSH_ID=${1%.*}
 
    # Safety check 1: Check whether targer connection exists.
@@ -4100,7 +4099,7 @@ stopFluidityToRenewSSLcerts () {
    fi
 
 
-   # Fluidity Finite State Machine 
+   # .Fluidity Finite State Machine 
    # State change to: TERMINATING
    setFluidityConnectionStatus $1 "SSL_TERMINATING"
    # Send a termination signal to both runPersistentSOCATClient and 
@@ -4139,7 +4138,7 @@ stopFluidityToRenewSSLcerts () {
    fi
    
    # Safety Check 3: Invoke terminationForcePing
-   # Here, we cover the possibility that Fluidity lost its client, thus
+   # Here, we cover the possibility that .Fluidity lost its client, thus
    # runPersistentSOCATClient is currently in a PINGING state and is 
    # having an active sleeping process that should first be terminated, 
    # before folder runTimeVars is erased.
@@ -4154,7 +4153,7 @@ stopFluidityToRenewSSLcerts () {
    echo "terminationForcePing is: $(getTerminationForcePing $1)"
       if [[ $(getServerIsTerminated $1) -eq 1 && $(getClientIsTerminated $1) -eq 1 && $(getTerminationForcePing $1) -ne 0 ]]; then
          
-         # Fluidity Finite State Machine 
+         # .Fluidity Finite State Machine 
          # State change to: TERMINATED
          setFluidityConnectionStatus $1 "SSL_TERMINATED"
          
@@ -4170,7 +4169,7 @@ stopFluidityToRenewSSLcerts () {
          
       else
       
-         # Fluidity Finite State Machine 
+         # .Fluidity Finite State Machine 
          # State change to: TERMINATION PENDING
          setFluidityConnectionStatus $1 "SSL_TERMINATION_PENDING"
          
@@ -4187,13 +4186,13 @@ stopFluidityToRenewSSLcerts () {
 }
 
 
-# 6. Fluidity Engine Functions
+# 6. .Fluidity Engine Functions
 # 6.2 Private Functions
 # 6.2.3 Link Setup
 
 
 # Arguments: ($1), ($2), ($3), ($4), ($5), ($6), ($7), ($8), ($9)
-# $1: Fluidity Connection ID [SSH_ID.SSL_ID]
+# $1: .Fluidity Connection ID [SSH_ID.SSL_ID]
 # $2: CASE A: [For $9="-s"] The Server Serial Interface
 #     CASE B: [For $9="-t"] Server's tunnel interface IP
 # $3: Server Listening Port
@@ -4228,7 +4227,7 @@ stopFluidityToRenewSSLcerts () {
 
 # Calls the script: NONE
 
-# Function Description: Initiate FLUIDITY'S two main
+# Function Description: Initiate .Fluidity's two main
 # functions: runPersistentSOCATServer & runPersistentSOCATClient.
 
 establishSOCATlink () {
@@ -4281,7 +4280,7 @@ establishSOCATlink () {
 }
 
 
-# 6. Fluidity Engine Functions
+# 6. .Fluidity Engine Functions
 # 6.2 Private Functions
 # 6.2.3 Link Setup
 # 6.2.3.1 Link State Information Administration
@@ -4289,7 +4288,7 @@ establishSOCATlink () {
 
 
 # Arguments: ($1), ($2), ($3), ($4), ($5), ($6), ($7), ($8), ($9)
-# $1: Fluidity Connection ID [SSH_ID.SSL_ID]
+# $1: .Fluidity Connection ID [SSH_ID.SSL_ID]
 # $2: CASE A: [For $9="-s"] The Server Serial Interface
 #     CASE B: [For $9="-t"] Server's tunnel interface IP
 # $3: Server Listening Port
@@ -4300,7 +4299,7 @@ establishSOCATlink () {
 # $7: CASE A: [For $9="-s"] Serial Speed
 #     CASE B: [For $9="-t"] Tunneling Network Subnet Mask
 # $8: Server IP address
-# $9: Your Fluidity flavour choice [Can be: "-s" serial or "-t" tunnel]
+# $9: Your .Fluidity flavour choice [Can be: "-s" serial or "-t" tunnel]
 
 # Sourced Variables: NONE
 
@@ -4315,8 +4314,8 @@ establishSOCATlink () {
 
 # Calls the script: NONE
 
-# Function Description: Create link_information.txt containg the 
-# arguments that comprise the requested SOCAT link.
+# Function Description: Create a link_information.txt containing the 
+# state information that comprise the specified SOCAT link.
 
 storeSOCATlinkStateInformation () {
    
@@ -4361,7 +4360,7 @@ storeSOCATlinkStateInformation () {
 
 
 # Arguments: ($1)
-# $1: Fluidity Connection ID [SSH_ID.SSL_ID]
+# $1: .Fluidity Connection ID [SSH_ID.SSL_ID]
 
 # Sourced Variables: NONE
 
@@ -4375,11 +4374,12 @@ storeSOCATlinkStateInformation () {
 
 # Calls the script: NONE
 
-# Function Description: Deletes the link state information.
+# Function Description: Deletes the link state information container file
+# link_information.txt for the specified SOCAT link.
 
 deleteSOCATlinkStateInformation () {
    
-   # Derive the SSH ID from Fluidity ID
+   # Derive the SSH ID from .Fluidity ID
    local SSH_ID=${1%.*}
    
    # Remove link_information.txt
@@ -4388,7 +4388,7 @@ deleteSOCATlinkStateInformation () {
 }
 
 
-# 6. Fluidity Engine Functions
+# 6. .Fluidity Engine Functions
 # 6.2 Private Functions
 # 6.2.3 Link Setup
 # 6.2.3.1 Link State Information Administration
@@ -4396,7 +4396,7 @@ deleteSOCATlinkStateInformation () {
 
 
 # Arguments: ($1)
-# $1: Fluidity Connection ID [SSH_ID.SSL_ID]
+# $1: .Fluidity Connection ID [SSH_ID.SSL_ID]
 
 # Sourced Variables: NONE
 
@@ -4427,7 +4427,7 @@ deleteSOCATlinkStateInformation () {
 
 initializeRunTimeVars () {
    
-   # Derive the SSH ID from Fluidity ID
+   # Derive the SSH ID from .Fluidity ID
    local SSH_ID=${1%.*}
    
    mkdir ~/Fluidity_Server/client.$SSH_ID/connection.$1/runtimeVars
@@ -4446,7 +4446,7 @@ initializeRunTimeVars () {
 }
 
 # Arguments: ($1)
-# $1: Fluidity Connection ID [SSH_ID.SSL_ID]
+# $1: .Fluidity Connection ID [SSH_ID.SSL_ID]
 
 # Sourced Variables: NONE
 
@@ -4460,34 +4460,34 @@ initializeRunTimeVars () {
 
 # Calls the script: NONE
 
-# Function Description: Upon invoking from another function, erase file
+# Function Description: Erase the state information container file 
 # runtimeVars.
 
 destroyRunTimeVars () {
    
-   # Derive the SSH ID from Fluidity ID
+   # Derive the SSH ID from .Fluidity ID
    local SSH_ID=${1%.*}
    
-   # Delete the entire runtimeVars folder for Fluidity target connection.
+   # Delete the entire runtimeVars folder for .Fluidity target connection.
    rm -rf ~/Fluidity_Server/client.$SSH_ID/connection.$1/runtimeVars
    
 }
 
 
-# 6. Fluidity Engine Functions
+# 6. .Fluidity Engine Functions
 # 6.2 Private Functions
 # 6.2.3 Link Setup
 # 6.2.3.2 Server Setup
 
 
 # Arguments: ($1), ($2), ($3), ($4), ($5)
-# $1: Fluidity Connection ID [SSH_ID.SSL_ID]
+# $1: .Fluidity Connection ID [SSH_ID.SSL_ID]
 # $2: CASE A: [For $5="-s"] The Server Serial Device
 #     CASE B: [For $5="-t"] Server's tunnel interface IP
 # $3: Server Listening Port
 # $4: CASE A: [For $5="-s"] Serial Speed
 #     CASE B: [For $5="-t"] Tunneling Network Subnet Mask
-# $5: Your Fluidity flavour choice [Can be: "-s" serial or "-t" tunnel]
+# $5: Your .Fluidity flavour choice [Can be: "-s" serial or "-t" tunnel]
 
 # Sourced Variables: NONE
 
@@ -4540,13 +4540,13 @@ runPersistentSOCATServer () {
 
 
 # Arguments: ($1), ($2), ($3), ($4), ($5)
-# $1: Fluidity Connection ID [SSH_ID.SSL_ID]
+# $1: .Fluidity Connection ID [SSH_ID.SSL_ID]
 # $2: CASE A: [For $5="-s"] The Server Serial Device
 #     CASE B: [For $5="-t"] Server's tunnel interface IP
 # $3: Server Listening Port
 # $4: CASE A: [For $5="-s"] Serial Speed
 #     CASE B: [For $5="-t"] Tunneling Network Subnet Mask
-# $5: Your Fluidity flavour choice [Can be: "-s" serial or "-t" tunnel]
+# $5: Your .Fluidity flavour choice [Can be: "-s" serial or "-t" tunnel]
 
 # Sourced Variables: NONE
 
@@ -4562,7 +4562,7 @@ runPersistentSOCATServer () {
 # 1. runSerialSOCATserver, with args ($1), ($2), ($3), ($4)
 # 2. runTUNnelSOCATserver, with args ($1), ($2), ($3), ($4)
 
-# Function Description: Fluidity server flavour selector. 
+# Function Description: .Fluidity server flavour selector. 
 # Based on argument $5, choose the desirable connection type for the
 # server machine.
 
@@ -4586,7 +4586,7 @@ runSOCATserver () {
 }
 
 # Arguments: ($1), ($2), ($3), ($4)
-# $1: Fluidity Connection ID [SSH_ID.SSL_ID]
+# $1: .Fluidity Connection ID [SSH_ID.SSL_ID]
 # $2: The Server Serial Device
 # $3: Server Listening Port
 # $4: Serial Speed
@@ -4645,7 +4645,7 @@ runSerialSOCATserver() {
 }
 
 # Arguments: ($1), ($2), ($3), ($4)
-# $1: Fluidity Connection ID [SSH_ID.SSL_ID]
+# $1: .Fluidity Connection ID [SSH_ID.SSL_ID]
 # $2: Server's tunnel interface IP
 # $3: Server Listening Port
 # $4: Tunneling Network Subnet Mask
@@ -4703,14 +4703,14 @@ runTUNnelSOCATserver () {
 }
 
 
-# 6. Fluidity Engine Functions
+# 6. .Fluidity Engine Functions
 # 6.2 Private Functions
 # 6.2.3 Link Setup
 # 6.2.3.3 Client Setup
 
 
 # Arguments: ($1), ($2), ($3), ($4), ($5), ($6), ($7), ($8)
-# $1. Fluidity Connection ID [SSH_ID.SSL_ID]
+# $1. .Fluidity Connection ID [SSH_ID.SSL_ID]
 # $2: CASE A: [For $8="-s"] Client's Serial Interface
 #     CASE B: [For $8="-t"] Client's tunnel interface IP
 # $3: Server Listening Port
@@ -4719,7 +4719,7 @@ runTUNnelSOCATserver () {
 # $6: CASE A: [For $8="-s"] Serial Speed
 #     CASE B: [For $8="-t"] Tunneling Network Subnet Mask
 # $7: Server IP
-# $8: Your Fluidity flavour choice [Can be: "-s" serial or "-t" tunnel]
+# $8: Your .Fluidity flavour choice [Can be: "-s" serial or "-t" tunnel]
 
 # Sourced Variables: NONE
 
@@ -4786,11 +4786,11 @@ runPersistentSOCATClient () {
       
       # Ping target client $4 6 times.
 
-      # Fluidity Finite State Machine 
+      # .Fluidity Finite State Machine 
       # State change to: PINGING
       setFluidityConnectionStatus $1 "PINGING"
 
-      # Fluidity client responds.
+      # .Fluidity client responds.
       if ping -c 6 $4; then
       
          # Reset $ping_delay to 2 seconds.
@@ -4850,7 +4850,7 @@ runPersistentSOCATClient () {
          
          done
 
-         # Fluidity Finite State Machine 
+         # .Fluidity Finite State Machine 
          # State change to: ACTIVE
          setFluidityConnectionStatus $1 "ACTIVE"
 
@@ -4871,14 +4871,14 @@ runPersistentSOCATClient () {
             encryptClient $1 $4 $5
          fi
          
-      # Fluidity client doesn't respond.
+      # .Fluidity client doesn't respond.
       else
       
          # Debugging information message 5
          echo "Inside the Loop, but Pinging failed."
          echo "Ping delay is: $ping_delay"
          
-         # Fluidity Finite State Machine 
+         # .Fluidity Finite State Machine 
          # State change to: SLEEPING
          setFluidityConnectionStatus $1 "SLEEPING"
 
@@ -4957,7 +4957,7 @@ runPersistentSOCATClient () {
 }
 
 # Arguments: ($1), ($2), ($3), ($4), ($5), ($6), ($7), ($8)
-# $1: Fluidity Connection ID [SSH_ID.SSL_ID]
+# $1: .Fluidity Connection ID [SSH_ID.SSL_ID]
 # $2: CASE A: [For $8="-s"] Client's Serial Interface
 #     CASE B: [For $8="-t"] Client's tunnel interface IP
 # $3: Server Listening Port
@@ -4966,7 +4966,7 @@ runPersistentSOCATClient () {
 # $6: CASE A: [For $8="-s"] Serial Speed
 #     CASE B: [For $8="-t"] Tunneling Network Subnet Mask
 # $7: Server IP
-# $8: Your Fluidity flavour choice [Can be: "-s" serial or "-t" tunnel]
+# $8: Your .Fluidity flavour choice [Can be: "-s" serial or "-t" tunnel]
 
 # Sourced Variables: NONE
 
@@ -4984,7 +4984,7 @@ runPersistentSOCATClient () {
 
 # Calls the script: NONE
 
-# Function Description: Fluidity client flavour selector. 
+# Function Description: .Fluidity client flavour selector. 
 # Based on argument $8, choose the desirable connection type for the
 # client machine.
 
@@ -5015,7 +5015,7 @@ runSOCATclient () {
 }
 
 # Arguments: ($1), ($2), ($3), ($4), ($5), ($6), ($7)
-# $1: Fluidity Connection ID [SSH_ID.SSL_ID]
+# $1: .Fluidity Connection ID [SSH_ID.SSL_ID]
 # $2: Client's Serial Interface
 # $3: Server Listening Port
 # $4: Client IP address
@@ -5061,7 +5061,7 @@ runSerialSOCATclient() {
 
    cd ~/Fluidity_Server/client.$SSH_ID/connection.$1
 
-   # Generate a bash script, named genSCRIPT_client$1.sh ($1: Fluidity connection ID),
+   # Generate a bash script, named genSCRIPT_client$1.sh ($1: .Fluidity connection ID),
    # that will contain the specific SOCAT connection configuration on client's side.
 
    # If an existing configuration file is found, leave it intact. Else,
@@ -5100,7 +5100,7 @@ runSerialSOCATclient() {
 }
 
 # Arguments: ($1), ($2), ($3), ($4), ($5), ($6), ($7), ($8)
-# $1: Fluidity Connection ID [SSH_ID.SSL_ID]
+# $1: .Fluidity Connection ID [SSH_ID.SSL_ID]
 # $2: Client's tunnel interface IP
 # $3: Server Listening Port
 # $4: Client IP address
@@ -5185,7 +5185,7 @@ runTUNnelSOCATclient() {
 }
 
 
-# 6. Fluidity Engine Functions
+# 6. .Fluidity Engine Functions
 # 6.2 Private Functions
 # 6.2.3 Link Setup
 # 6.2.3.3 Client Setup
@@ -5193,7 +5193,7 @@ runTUNnelSOCATclient() {
 
 
 # Arguments: ($1), ($2), ($3)
-# $1. Fluidity Connection ID [SSH_ID.SSL_ID]
+# $1. .Fluidity Connection ID [SSH_ID.SSL_ID]
 # $2. Client IP address
 # $3: Client username (for raspbian OS the default is pi@)
 
@@ -5230,7 +5230,7 @@ checkForConnectionFolderAndDecrypt () {
 }
 
 # Arguments: ($1), ($2), ($3)
-# $1. Fluidity Connection ID [SSH_ID.SSL_ID]
+# $1. .Fluidity Connection ID [SSH_ID.SSL_ID]
 # $2. Client IP address
 # $3: Client username (for raspbian OS the default is pi@)
 
@@ -5274,7 +5274,7 @@ isItEncryptedOnClient () {
 }
 
 # Arguments: ($1), ($2), ($3)
-# $1: Fluidity Connection ID [SSH_ID.SSL_ID]
+# $1: .Fluidity Connection ID [SSH_ID.SSL_ID]
 # $2: Client IP address
 # $3: Client username (for raspbian OS the default is pi@)
 
@@ -5344,7 +5344,7 @@ decryptClient () {
 }
 
 # Arguments: ($1), ($2), ($3)
-# $1: Fluidity Connection ID [SSH_ID.SSL_ID]
+# $1: .Fluidity Connection ID [SSH_ID.SSL_ID]
 # $2: Client IP address
 # $3: Client username (for raspbian OS the default is pi@)
 
@@ -5360,8 +5360,7 @@ decryptClient () {
 
 # Calls the script: NONE
 
-# Function Description: When invoked, encrypts the contents of folder
-# ~/Fluidity_Client.
+# Function Description: Encrypt the contents of folder ~/Fluidity_Client.
 
 encryptClient () {
 	
@@ -5375,13 +5374,13 @@ encryptClient () {
 }
 
 
-# 6. Fluidity Engine Functions
+# 6. .Fluidity Engine Functions
 # 6.2 Private Functions
 # 6.2.4 SSL Certificates Verification Functions
 
 
 # Arguments: ($1), ($2), ($3)
-# $1: Fluidity Connection ID [SSH_ID.SSL_ID]
+# $1: .Fluidity Connection ID [SSH_ID.SSL_ID]
 # $2: Client IP address
 # $3: Client username (for raspbian OS the default is pi@)
 
@@ -5413,7 +5412,7 @@ verifyThatTokenSlotFolderIsEmpty () {
 }
 
 # Arguments: ($1), ($2), ($3)
-# $1: Fluidity Connection ID [SSH_ID.SSL_ID]
+# $1: .Fluidity Connection ID [SSH_ID.SSL_ID]
 # $2: Client IP address
 # $3: Client username (for raspbian OS the default is pi@)
 
@@ -5469,7 +5468,7 @@ verifyThatSSLCertificatesExist () {
 }
 
 # Arguments: ($1), ($2), ($3)
-# $1: Fluidity Connection ID [SSH_ID.SSL_ID]
+# $1: .Fluidity Connection ID [SSH_ID.SSL_ID]
 # $2: Client IP address
 # $3: Client username (for raspbian OS the default is pi@)
 
@@ -5488,8 +5487,8 @@ verifyThatSSLCertificatesExist () {
 
 # Invokes Functions: NONE
 
-# Function Description: Check that the client - server .crt and .pem 
-# MD5 file hashes match. If they match, the client certificates are 
+# Function Description: Do a check that the client - server .crt and 
+# .pem MD5 file hashes match. If they match, the client certificates are 
 # valid and ready to be used.
 doAClientServerMD5EquivalencyCheck () {
 
@@ -5584,7 +5583,7 @@ END_CAT
 }
 
 # Arguments: ($1), ($2), ($3)
-# $1: Fluidity Connection ID [SSH_ID.SSL_ID]
+# $1: .Fluidity Connection ID [SSH_ID.SSL_ID]
 # $2: Client IP address
 # $3: Client username (for raspbian OS the default is pi@)
 
@@ -5603,9 +5602,9 @@ END_CAT
 
 # Invokes Functions: NONE
 
-# Function Description: Check that the client - server .crt and .pem 
-# SHA256 file hashes match. If they match, the client certificates are 
-# valid and ready to be used.
+# Function Description: Do a check that the client - server .crt and 
+# .pem SHA256 file hashes match. If they match, the client certificates 
+# are valid and ready to be used.
 doAClientServerSHA256EquivalencyCheck () {
 
    local SSH_ID=${1%.*}
@@ -5699,13 +5698,13 @@ END_CAT
 }
 
 
-# 6. Fluidity Engine Functions
+# 6. .Fluidity Engine Functions
 # 6.2 Private Functions
 # 6.2.5 VPN Routing
 
 
 # Arguments: ($1), ($2), ($3), ($4), ($5)
-# $1: Fluidity Connection ID [SSH_ID.SSL_ID]
+# $1: .Fluidity Connection ID [SSH_ID.SSL_ID]
 # $2: Server port
 # $3: Client IP.
 # $4: Client Username.
@@ -5724,7 +5723,12 @@ END_CAT
 
 # Calls the script: NONE
 
-# Function Description: Inject the VPN routes in client and server.
+# Function Description: Inject the lists of VPN routes stored in the 
+# container files listOfServerRoutes.sh 
+# (invokes injectTheListOfServerRoutes) and 
+# listOfClientRoutes.[SSH_ID.SSL_ID].sh 
+# (invokes injectTheListOfClientRoutes) on both the client's and 
+# server's routing tables.
 injectTheListOfFluidityConnectionRoutes () {
    
    # While $allow_execution is 1 (.Fluidity execution is allowed)
@@ -5773,7 +5777,8 @@ injectTheListOfFluidityConnectionRoutes () {
 # 1. listOfServerRoutes.sh, with no args
 # in: ~/Fluidity_Server/client.$SSH_ID/connection.$1
 
-# Function Description: 
+# Function Description: Execute the script listOfServerRoutes.sh to 
+# inject the server VPN routes.
 injectTheListOfServerRoutes () {
    
    # Do a local execution.
@@ -5782,7 +5787,7 @@ injectTheListOfServerRoutes () {
 }
 
 # Arguments: ($1), ($2), ($3)
-# $1: Fluidity Connection ID [SSH_ID.SSL_ID]
+# $1: .Fluidity Connection ID [SSH_ID.SSL_ID]
 # $2: Client IP.
 # $3: Client Username.
 
@@ -5800,7 +5805,9 @@ injectTheListOfServerRoutes () {
 # 1. listOfClientRoutes.$1.sh, with no args
 # in: ~/Fluidity_Server/client.$SSH_ID/connection.$1
 
-# Function Description: 
+# Function Description: Remotely execute the bash script 
+# listOfClientRoutes.[SSH_ID.SSL_ID].sh to the target .Fluidity client 
+# to inject the stored VPN client routes.
 injectTheListOfClientRoutes () {
    
    local SSH_ID=${1%.*}
@@ -5812,13 +5819,13 @@ injectTheListOfClientRoutes () {
 }
 
 
-# 6. Fluidity Engine Functions
+# 6. .Fluidity Engine Functions
 # 6.2 Private Functions
 # 6.2.6 Engine Reporting
 
 
 # Arguments: ($1), ($2)
-# $1: Fluidity Connection ID [SSH_ID.SSL_ID]
+# $1: .Fluidity Connection ID [SSH_ID.SSL_ID]
 # $2: Server port
 
 # Sourced Variables: NONE
@@ -5834,9 +5841,8 @@ injectTheListOfClientRoutes () {
 
 # Calls the script: NONE
 
-# Function Description: While .Fluidity execution is allowed, repeatedly
-# check whether the SOCAT link is up. If the SOCAT link is in 
-# ESTABLISHED state, then report its current connection status.
+# Function Description: Do a netstat status report for the active 
+# .Fluidity connection [SSH_ID.SSL_ID] on active port $2.
 reportWhenLinkIsEstablished () {
    
    # While $allow_execution is 1 (.Fluidity execution is allowed)
@@ -5865,7 +5871,7 @@ reportWhenLinkIsEstablished () {
 }
 
 # Arguments: ($1), ($2)
-# $1: Fluidity Connection ID [SSH_ID.SSL_ID]
+# $1: .Fluidity Connection ID [SSH_ID.SSL_ID]
 # $2: Server port
 
 # Sourced Variables: NONE
@@ -5881,10 +5887,8 @@ reportWhenLinkIsEstablished () {
 
 # Calls the script: NONE
 
-# Function Description: While .Fluidity execution is allowed, repeatedly
-# check whether the SOCAT link is up. If the SOCAT link is in 
-# ESTABLISHED state, then report the current UFW status for that 
-# specific port.
+# Function Description: Do a UFW status report for the active 
+# .Fluidity connection [SSH_ID.SSL_ID] on active port $2.
 reportWhenFirewallRulesAreAdded () {
    
    # While $allow_execution is 1 (.Fluidity execution is allowed)
@@ -5914,7 +5918,7 @@ reportWhenFirewallRulesAreAdded () {
 }
 
 # Arguments: ($1), ($2)
-# $1: Fluidity Connection ID [SSH_ID.SSL_ID]
+# $1: .Fluidity Connection ID [SSH_ID.SSL_ID]
 # $2: Server port
 
 # Sourced Variables: NONE
@@ -5930,7 +5934,8 @@ reportWhenFirewallRulesAreAdded () {
 
 # Calls the script: NONE
 
-# Function Description: 
+# Function Description: Do a UFW status report for the inactive 
+# .Fluidity connection [SSH_ID.SSL_ID] on the previously active port $2.
 reportWhenFirewallRulesAreRemoved () {
    
    # While .Fluidity is manually stopped.
@@ -5960,14 +5965,14 @@ reportWhenFirewallRulesAreRemoved () {
 }
 
 
-# 6. Fluidity Engine Functions
+# 6. .Fluidity Engine Functions
 # 6.3 Engine Auxillary Functions
 # 6.3.1 Public Functions
 
 
 # Arguments: ($1) 
-# $1: Fluidity Client (SSH) Connection ID.
-# $2: Fluidity Virtual Circuit (SSL) Connection ID.
+# $1: .Fluidity Client (SSH) Connection ID.
+# $2: .Fluidity Virtual Circuit (SSL) Connection ID.
 
 # Sourced Variables: NONE
 
@@ -5982,10 +5987,10 @@ reportWhenFirewallRulesAreRemoved () {
 
 # Calls the script: NONE
 
-# Function Description: This function is used to forcefully take 
-# runPersistentSOCATClient out of its dormant state by terminating its 
-# underlying SLEEP process, thus re-igniting a PINGing effort towards 
-# the client that server lost communication.
+# Function Description: Forcefully snatch runPersistentSOCATClient out of 
+# its dormant state by terminating its underlying SLEEP process. This 
+# will re-ignite a PING effort towards the client that communication was
+# previously lost.
 
 forcePing () {
    
@@ -6029,13 +6034,13 @@ forcePing () {
 }
 
 
-# 7. Fluidity Connection Status Functions
+# 7. .Fluidity Connection Status Functions
 # 7.1 Public Functions
 
 
 # Arguments: ($1)
-# $1: Fluidity Client (SSH) Connection ID.
-# $2: Fluidity Virtual Circuit (SSL) Connection ID.
+# $1: .Fluidity Client (SSH) Connection ID.
+# $2: .Fluidity Virtual Circuit (SSL) Connection ID.
 
 # Sourced Variables:
 # 1. ~/Fluidity_Server/client.$SSH_ID/connection.$1/link_information.txt
@@ -6074,8 +6079,7 @@ forcePing () {
 
 # Calls the script: NONE
 
-# Function Description: Displays the current connection status.
-
+# Function Description: Display the current connection status.
 showLinkStatus () {
    
    # Safety check 1:
@@ -6233,7 +6237,7 @@ EOF
 # Calls the script: NONE
 
 # Function Description: User function that displays in a quick, simple way
-# the serial controllers installed to the specific PC. 
+# the serial controllers installed to this PC. 
 displaySerialDevices () {
 
    sudo dmesg | grep tty
@@ -6257,8 +6261,8 @@ displaySerialDevices () {
 
 # Calls the script: NONE
 
-# Function Description: Auxillary function to SSHclientAccess that changes
-# the hostname to target client.
+# Function Description: Auxillary function to SSHclientAccess that 
+# changes the hostname to hostname $1 on target client.
 changeRemoteHostName () {
 
    # heefhEKX
@@ -6308,8 +6312,8 @@ findInterfaceFromIP () {
 
 # Calls the script: NONE
 
-# Function Description: Boost server entropy by installing 
-# HAVEGED or rng-tools.
+# Function Description: Give a boost to the server's entropy by 
+# installing HAVEGED or rng-tools.
 
 giveAnEntropyBoost () {
    
@@ -6380,7 +6384,7 @@ giveAnEntropyBoost () {
 
 # Calls the script: NONE
 
-# Function Description: Perform a Fluidity file structure integrity 
+# Function Description: Perform a .Fluidity file structure integrity 
 # check. In case of success return: 1.
 checkFluidityFilesystemIntegrity () {
    
@@ -6738,6 +6742,39 @@ removeInternalInterface () {
 # 10.1 Public Functions
 
 
+# BACKGROUND INFO
+# 
+# The problem we faced was that Debian Linux stores its routing table in
+# memory until the next restart.
+#
+# If a restart occurs the routing table is wiped clean.
+#
+# To solve this problem, we create the global script 
+# listOfServerRoutes.sh in ~/Fluidity_Server/ folder and a per .Fluidity
+# connection script listOfClientRoutes.[SSH_ID].[SSL_ID].sh, 
+# each stored in their corresponding .Fluidity connection folders
+# ~/Fluidity_Server/client.[SSH_ID]/connection.[SSH_ID].[SSL_ID]/.
+#
+# Those scripts work as special placeholders for the VPN routes
+# of interest.
+#
+# The scripts are further accompanied by a set of functions that 
+# constitute a public interface, through which we can safely add 
+# and remove the VPN routes in a controlled manner. Functions 
+# addServerRoute and removeServerRoute are responsible for adding and 
+# removing routes from listOfServerRoutes.sh and functions 
+# addClientRoute and removeClientRoute are responsible for adding and 
+# removing routes from each listOfClientRoutes.[SSH_ID].[SSL_ID].sh that
+# correspond to their respective .Fluidity client connections folders.
+# 
+#
+# Every time a .Fluidity connection is initiated listOfServerRoutes.sh
+# is locally executed on .Fluidity server and the respective
+# listOfClientRoutes.[SSH_ID].[SSL_ID].sh is remotely executed in its 
+# corresponding .Fluidity client (i.e. SSH_ID), for that specific 
+# .Fluidity connection (i.e. SSL_ID).
+
+
 # Arguments: ($1), ($2), ($3), ($4), ($5), ($6)
 # $1: Fixed value: ip
 # $2: Fixed value: route
@@ -6760,7 +6797,9 @@ removeInternalInterface () {
 
 # Calls the script: NONE
 
-# Function Description: 
+# Function Description: Add a server route to the .Fluidity VPN routes
+# list, stored in the special purpose container script 
+# ~/Fluidity_Server/listOfServerRoutes.sh.
 addServerRoute () {
    
    # Safety check 1: Number of arguments should be no less than 6.
@@ -6800,7 +6839,7 @@ addServerRoute () {
       
    else
    
-      # Add the route to server list.
+      # Add the route to server VPN route list.
       echo "sudo $1 $2 $3 $4 $5 $6" >> ~/Fluidity_Server/listOfServerRoutes.sh
       
    fi
@@ -6827,7 +6866,9 @@ addServerRoute () {
 
 # Calls the script: NONE
 
-# Function Description: 
+# Function Description: Remove a server route from the .Fluidity VPN 
+# routes list, stored in the special purpose container 
+# script ~/Fluidity_Server/listOfServerRoutes.sh.
 removeServerRoute () {
    
    # Safety check 1: Number of arguments should be no less than 6.
@@ -6850,7 +6891,7 @@ removeServerRoute () {
       return
    fi
    
-   # Remove the route from the server list.
+   # Remove the route from the VPN server route list.
    grep -F -v "sudo $1 $2 $3 $4 $5 $6" \
    ~/Fluidity_Server/listOfServerRoutes.sh > \
    ~/Fluidity_Server/listOfServerRoutes.sh.tmp && \
@@ -6860,8 +6901,8 @@ removeServerRoute () {
 }
 
 # Arguments: ($1), ($2), ($3), ($4), ($5), ($6), ($7), ($8)
-# $1: Fluidity Client (SSH) Connection ID.
-# $2: Fluidity Virtual Circuit (SSL) Connection ID.
+# $1: .Fluidity Client (SSH) Connection ID.
+# $2: .Fluidity Virtual Circuit (SSL) Connection ID.
 # $3: Fixed value: ip 
 # $4: Fixed value: route
 # $5: Fixed value: add
@@ -6883,7 +6924,9 @@ removeServerRoute () {
 
 # Calls the script: NONE
 
-# Function Description: 
+# Function Description: Add a client route to the .Fluidity VPN routes
+# list, stored in the special purpose connection container script 
+# ~/Fluidity_Server/client.[SSH_ID]/connection.[SSH_ID].[SSL_ID]/listOfClientRoutes.[SSH_ID].[SSL_ID].sh.
 addClientRoute () {
    
    # Safety check 1: Number of arguments should be no less than 8.
@@ -6921,7 +6964,7 @@ addClientRoute () {
       # Message to user.
       echo "Creating clientRoutes.$1.$2.sh"
    
-      # Add the route to the client list.
+      # Add the route to the VPN route client list.
       echo "sudo $3 $4 $5 $6 $7 $8" >> ~/Fluidity_Server/client.$1/connection.$1.$2/listOfClientRoutes.$1.$2.sh
       
       # Change permissions and make the script executable.
@@ -6937,8 +6980,8 @@ addClientRoute () {
 }
 
 # Arguments: ($1), ($2), ($3), ($4), ($5), ($6), ($7), ($8)
-# $1: Fluidity Client (SSH) Connection ID.
-# $2: Fluidity Virtual Circuit (SSL) Connection ID.
+# $1: .Fluidity Client (SSH) Connection ID.
+# $2: .Fluidity Virtual Circuit (SSL) Connection ID.
 # $3: Fixed value: ip 
 # $4: Fixed value: route
 # $5: Fixed value: add
@@ -6958,7 +7001,9 @@ addClientRoute () {
 
 # Calls the script: NONE
 
-# Function Description: 
+# Function Description: Remove a client route from the .Fluidity VPN 
+# routes list, stored in the special purpose connection container script 
+# ~/Fluidity_Server/client.[SSH_ID]/connection.[SSH_ID].[SSL_ID]/listOfClientRoutes.[SSH_ID].[SSL_ID].sh.
 removeClientRoute () {
    
    # Safety check 1: Number of arguments should be no less than 8.
@@ -6987,7 +7032,7 @@ removeClientRoute () {
       return
    fi
    
-   # Remove the route from the client list.
+   # Remove the route from the client VPN route list.
    grep -F -v "sudo $3 $4 $5 $6 $7 $8" \
    ~/Fluidity_Server/client.$1/connection.$1.$2/listOfClientRoutes.$1.$2.sh > \
    ~/Fluidity_Server/client.$1/connection.$1.$2/listOfClientRoutes.$1.$2.sh.tmp && \
