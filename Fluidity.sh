@@ -58,7 +58,6 @@
 # 6. General Auxillary Functions
 #		recallSSHidentity
 #		displaySerialDevices
-#		changeRemoteHostName
 #		findInterfaceFromIP
 # 7. VPN Routing
 #		addServerRoute
@@ -193,7 +192,6 @@
 # 	8.1 Public Functions
 #		recallSSHidentity +
 #		displaySerialDevices +
-#		changeRemoteHostName +
 #		findInterfaceFromIP +
 # 	8.2 Private Functions
 #		giveAnEntropyBoost +
@@ -202,7 +200,7 @@
 #		checkRemoteEntropy +
 #		getNetstatConnectionStatus +
 #		getTheRemotePort +
-#		removeFluidityClientConfigInfoFromSSHConfig + 11 functions
+#		removeFluidityClientConfigInfoFromSSHConfig + 10 functions
 # 9. Managing Internal Interfaces
 # 	9.1 Public Functions
 #		setInternalInterface + 
@@ -214,12 +212,12 @@
 #		addClientRoute +
 #		removeClientRoute + 4 functions
 
-# Counting 95 functions in total.
+# Counting 94 functions in total.
 
 # List of Quickfind tags:
-# 1. .Fluidity Flavour branching points: kzjFgtUz
-# 2. .Fluidity does SSH to client machine: heefhEKX
-# 3. .Fluidity transfers files via SCP to client machine: vvtSng7u
+# 1.  Branching points that define the .Fluidity flavour to be used: kzjFgtUz
+# 2.  Points in which .Fluidity does an SSH call to the client machine: heefhEKX
+# 3.  Points in which .Fluidity uses SCP to sent a file to the client machine: vvtSng7u
 
 # List of GREP tags:
 # 1. Deduce the external interface IP from UFW SSH rule: HFBCvIa7h
@@ -666,12 +664,15 @@ EOF
    # 2. (ecryptfs-utils) 
    # 3. (expect) 
    # 4. (lsof)
-   # 5. (Uncomplicated Firewall, UFW)
+   # 5. (nmap)
+   # 6. (sshpass)
+   # 7. (Uncomplicated Firewall, UFW)
       # Perform basic firewall configuration i.e.
          # a. Allow outgoing traffic.
          # b. Deny incoming traffic.
-         # c. Allow inbound SSH connections on port 22.
-   # 6. (haveged OR rng-tools)
+         # c. Allow traffic through the firewall.
+         # d. Allow inbound SSH connections on port 22.
+   # 8. (haveged OR rng-tools)
 
 fluidityServerConfiguration () {
 
@@ -698,6 +699,14 @@ fluidityServerConfiguration () {
       if ! [ -x "$(command -v lsof)" ]; then
          sudo apt-get -y install lsof
       fi
+      # Verify and if not present install "NMAP"
+      if ! [ -x "$(command -v nmap)" ]; then
+         sudo apt-get -y install nmap
+      fi
+      # Verify and if not present install "SSHPASS"
+      if ! [ -x "$(command -v sshpass)" ]; then
+         sudo apt-get -y install sshpass
+      fi
       # Verify and if not present install "UFW", 
       # also perform the initial Firewall configuration.
       if ! [ -x "$(command -v ufw)" ]; then
@@ -711,6 +720,8 @@ fluidityServerConfiguration () {
          sudo ufw default allow outgoing
          # Deny all the incoming traffic
          sudo ufw default deny incoming
+         # Allow traffic to be forwarded through UFW
+         sudo ufw default allow routed
          # Allow SSH connections
          sudo ufw allow ssh
       fi
@@ -953,7 +964,6 @@ fluidityClientConfiguration () {
 # 2. checkFluidityFilesystemIntegrity, no args
 # 3. fluidityRemoteClientConfiguration, with args ($3), ($5), ($2)
 # 4. remoteSeekAndEncryptDaemonInstallation ($3), ($5), ($1), ($2)
-# 4. changeRemoteHostName, with args ($2), ($3), ($5)
 
 # Calls the script: NONE
 
@@ -1097,10 +1107,6 @@ EOF
 '\nlocal client_IP_address='$3\
 '\nlocal client_username='$5\
    > ~/Fluidity_Server/client.$1/basic_client_info.txt
-   
-   # Invoke function changeRemoteHostName to change client hostname
-   # to fluidity_client_[SSH_ID].
-   changeRemoteHostName "fluidity_client_$1" $3 $5
    
    # Invoke fluidityRemoteClientConfiguration to
    # install .Fluidity's essential programs and basic firewall
@@ -1566,6 +1572,7 @@ EOF
             
             sudo ufw default allow outgoing
             sudo ufw default deny incoming
+            sudo ufw default allow routed
             
             sudo ufw allow ssh
             
@@ -1593,6 +1600,7 @@ EOF
             
             sudo ufw default allow outgoing
             sudo ufw default deny incoming
+            sudo ufw default allow routed
             
             sudo ufw allow ssh
             
@@ -6244,31 +6252,6 @@ displaySerialDevices () {
 
 }
 
-# Arguments: ($1), ($2), ($3), ($4)
-# $1: New hostname.
-# $2: Client IP address.
-# $3: Client username
-
-# Sourced Variables: NONE
-
-# Intershell File Variables in use: NONE
-
-# Global Variables in use: NONE
-
-# Generates: Nothing
-
-# Invokes Functions: NONE
-
-# Calls the script: NONE
-
-# Function Description: Auxillary function to SSHclientAccess that 
-# changes the hostname to hostname $1 on target client.
-changeRemoteHostName () {
-
-   # heefhEKX
-   ssh $3@$2 sudo hostnamectl set-hostname $1
-
-}
 
 # Arguments: ($1)
 # $1: IP address
