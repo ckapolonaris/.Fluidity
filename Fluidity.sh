@@ -216,8 +216,10 @@
 
 # List of Quickfind tags:
 # 1.  Branching points that define the .Fluidity flavour to be used: kzjFgtUz
-# 2.  Points in which .Fluidity does an SSH call to the client machine: heefhEKX
-# 3.  Points in which .Fluidity uses SCP to sent a file to the client machine: vvtSng7u
+# 2.  Points in which .Fluidity does an SSH call to a client machine: heefhEKX
+# 3.  Points in which .Fluidity uses SCP to sent a file to a client machine: vvtSng7u
+# 4.  Debugging section: rZ7y4zq
+# 5.  Command line suppressor: S99zBE5 
 
 # List of GREP tags:
 # 1. Deduce the external interface IP from UFW SSH rule: HFBCvIa7h
@@ -633,7 +635,6 @@ EOF
    cd Fluidity_Server
    
    # Enable the IP forwarding after a potential reboot.
-   
    sudo sysctl -w net.ipv4.ip_forward=1
    
 }
@@ -3652,8 +3653,9 @@ stopFluidity () {
 
 openPort () {
    
+   # S99zBE5
    # UFW: Rule change for port $1
-   sudo ufw allow $1
+   sudo ufw allow $1 &>/dev/null
    
 }
 
@@ -3677,8 +3679,9 @@ openPort () {
 
 closePort () {
    
+   # S99zBE5
    # UFW: Rule change for port $1
-   sudo ufw delete allow $1
+   sudo ufw delete allow $1 &>/dev/null
    
 }
 
@@ -3771,8 +3774,9 @@ openTheLocalTunnelInterface () {
    
    interface=$(findInterfaceFromIP $1)
    
-   sudo ufw allow in on $interface
-   sudo ufw allow out on $interface
+   # S99zBE5
+   sudo ufw allow in on $interface &>/dev/null
+   sudo ufw allow out on $interface &>/dev/null
    
 }
 
@@ -3819,9 +3823,10 @@ openTheRemoteTunnelInterface () {
    
       cat << EOF > ~/Fluidity_Server/Generated_Scripts/genSCRIPT_openTheRemoteTunnelInterface.sh
 interface=\$(sudo ifconfig | grep -B 2 $2 | cut -d' ' -f 1 | sed 's/://')
-      
-sudo ufw allow in on \$interface
-sudo ufw allow out on \$interface
+
+# S99zBE5
+sudo ufw allow in on \$interface &>/dev/null
+sudo ufw allow out on \$interface &>/dev/null
    
 EOF
 
@@ -3831,9 +3836,10 @@ EOF
       
       cat << EOF > ~/Fluidity_Server/Generated_Scripts/genSCRIPT_openTheRemoteTunnelInterface.sh
 interface=\$(sudo ifconfig | grep -B 2 $2 | cut -d' ' -f 1 | sed 's/://')
-      
-sudo ufw allow in on \$interface
-sudo ufw allow out on \$interface
+
+# S99zBE5
+sudo ufw allow in on \$interface &>/dev/null
+sudo ufw allow out on \$interface &>/dev/null
    
 EOF
 
@@ -3869,8 +3875,9 @@ closeTheLocalTunnelInterface () {
    
    interface=$(findInterfaceFromIP $1)
    
-   sudo ufw delete allow in on $interface
-   sudo ufw delete allow out on $interface
+   # S99zBE5
+   sudo ufw delete allow in on $interface &>/dev/null
+   sudo ufw delete allow out on $interface &>/dev/null
    
 }
 
@@ -3910,8 +3917,9 @@ closeTheRemoteTunnelInterface () {
       cat << EOF > ~/Fluidity_Server/Generated_Scripts/genSCRIPT_closeTheRemoteTunnelInterface.sh
 interface=\$(sudo ifconfig | grep -B 2 $2 | cut -d' ' -f 1 | sed 's/://')
       
-sudo ufw delete allow in on \$interface
-sudo ufw delete allow out on \$interface
+# S99zBE5
+sudo ufw delete allow in on \$interface &>/dev/null
+sudo ufw delete allow out on \$interface &>/dev/null
    
 EOF
 
@@ -3922,8 +3930,9 @@ EOF
       cat << EOF > ~/Fluidity_Server/Generated_Scripts/genSCRIPT_closeTheRemoteTunnelInterface.sh
 interface=\$(sudo ifconfig | grep -B 2 $2 | cut -d' ' -f 1 | sed 's/://')
       
-sudo ufw delete allow in on \$interface
-sudo ufw delete allow out on \$interface
+# S99zBE5
+sudo ufw delete allow in on \$interface &>/dev/null
+sudo ufw delete allow out on \$interface &>/dev/null
    
 EOF
 
@@ -4252,22 +4261,24 @@ establishSOCATlink () {
    
    # Invoke openPort
    # Change UFW rules to allow the traffic through the designated port.
-   openPort $3
+   openPort $3 &>/dev/null
    
    # Invoke storeSOCATlinkStateInformation
    # Export the variables that this instance is running on for Fluidity's
    # monitoring functions.
    storeSOCATlinkStateInformation $1 $2 $3 $4 $5 $6 $7 $8 $9
    
+   # S99zBE5
    # Invoke runPersistentSOCATServer
    # Start the server and run the process in the background. Silence the
    # output.
    (runPersistentSOCATServer $1 $2 $3 $7 $9) &>/dev/null &
    
+   # S99zBE5
    # Invoke runPersistentSOCATClient
    # Start the remote client and run the process in the background. 
    # Silence the output.
-   (runPersistentSOCATClient $1 $4 $3 $5 $6 $7 $8 $9) &
+   (runPersistentSOCATClient $1 $4 $3 $5 $6 $7 $8 $9) &>/dev/null &
    
    # Invoke reportWhenLinkIsEstablished
    # Report the link status when the link is detected as established.
@@ -4785,6 +4796,7 @@ runPersistentSOCATClient () {
    # $temp_id: A temporary placeholder that keeps the sleep pid. 
    local temp_pid=0
    
+   # rZ7y4zq
    # Debugging information message 1
    echo "Outside the Loop. Initiating."
    
@@ -4804,6 +4816,7 @@ runPersistentSOCATClient () {
          # Reset $ping_delay to 2 seconds.
          ping_delay=2
          
+         # rZ7y4zq
          # Debugging information message 4
          echo "Inside the Loop and proceeding with runSOCATclient."
          echo "Ping delay is: $ping_delay"
@@ -4882,6 +4895,7 @@ runPersistentSOCATClient () {
       # .Fluidity client doesn't respond.
       else
       
+         # rZ7y4zq
          # Debugging information message 5
          echo "Inside the Loop, but Pinging failed."
          echo "Ping delay is: $ping_delay"
@@ -4898,6 +4912,7 @@ runPersistentSOCATClient () {
          # From there on pinging will occur every 600 seconds.
          if [[ $ping_delay -ge 600 ]]; then
          
+            # rZ7y4zq
             # Debugging information message 6
             echo "Inside the Loop. Pinging above 600secs."
             echo "Ping delay is: $ping_delay"
@@ -4926,6 +4941,7 @@ runPersistentSOCATClient () {
          # Next ping in $ping_delay secs.
          else
          
+            # rZ7y4zq
             # Debugging information message 7
             echo "Inside the Loop. Pinging below 600secs."
             echo "Ping delay is: $ping_delay"
@@ -4955,6 +4971,7 @@ runPersistentSOCATClient () {
       
    done
    
+   # rZ7y4zq
    # Debugging information message 8
    echo "Outside the Loop. Main Loop terminated."
    
