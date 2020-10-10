@@ -6,7 +6,7 @@
 # Charalampos Kapolonaris: Technical Lead
 # Vasilios Koutlas: Software Tester
 #
-# Description: Fluidity is a SOCAT SSL connection manager. It's based on
+# Description: .Fluidity is a SOCAT SSL connection manager. It's based on
 # a server - client model and focuses on the creation and management
 # of SOCAT SSL connections for secure and encrypted communication.
 # More specifically, it can add - remove clients and create, remove and
@@ -58,7 +58,6 @@
 # 6. General Auxillary Functions
 #		recallSSHidentity
 #		displaySerialDevices
-#		changeRemoteHostName
 #		findInterfaceFromIP
 # 7. VPN Routing
 #		addServerRoute
@@ -193,7 +192,6 @@
 # 	8.1 Public Functions
 #		recallSSHidentity +
 #		displaySerialDevices +
-#		changeRemoteHostName +
 #		findInterfaceFromIP +
 # 	8.2 Private Functions
 #		giveAnEntropyBoost +
@@ -202,7 +200,7 @@
 #		checkRemoteEntropy +
 #		getNetstatConnectionStatus +
 #		getTheRemotePort +
-#		removeFluidityClientConfigInfoFromSSHConfig + 11 functions
+#		removeFluidityClientConfigInfoFromSSHConfig + 10 functions
 # 9. Managing Internal Interfaces
 # 	9.1 Public Functions
 #		setInternalInterface + 
@@ -214,12 +212,15 @@
 #		addClientRoute +
 #		removeClientRoute + 4 functions
 
-# Counting 95 functions in total.
+# Counting 94 functions in total.
 
 # List of Quickfind tags:
-# 1. .Fluidity Flavour branching points: kzjFgtUz
-# 2. .Fluidity does SSH to client machine: heefhEKX
-# 3. .Fluidity transfers files via SCP to client machine: vvtSng7u
+# 1.  Branching points that define the .Fluidity flavour to be used: kzjFgtUz
+# 2.  Points in which .Fluidity does an SSH call to a client machine: heefhEKX
+# 3.  Points in which .Fluidity uses SCP to sent a file to a client machine: vvtSng7u
+# 4.  Debugging section: rZ7y4zq
+# 5.  Command line suppressor: S99zBE5 
+# 6.  Self-signed certificate information fields: tQscITd
 
 # List of GREP tags:
 # 1. Deduce the external interface IP from UFW SSH rule: HFBCvIa7h
@@ -601,11 +602,20 @@ reinstallFluidity () {
 # potential reboot.
 mountFluidityServerFolder () {
    
-   local pass
+   if ! [ -d ~/Fluidity_Server ]; then
    
-   echo -e \
-      '\nPlease enter your Fluidity master password:'\
-      && read -p '_' pass
+      echo -e \
+      '\n.Fluidity server folder missing.'\
+      '\nPlease check your .Fluidity installation.'
+      return
+      
+   else
+   
+      local pass
+      
+      echo -e \
+         '\nPlease enter your Fluidity master password:'\
+         && read -p '_' pass
 
    # Mount the main Fluidity installation folder.
 
@@ -632,11 +642,21 @@ ecryptfs_enable_filename_crypto=y\
  expect eof
 EOF
 
-   cd Fluidity_Server
-   
-   # Enable the IP forwarding after a potential reboot.
-   
-   sudo sysctl -w net.ipv4.ip_forward=1
+      cd Fluidity_Server
+      
+      if sudo ufw status | grep "Status: inactive"; then
+         expect << EOF
+         spawn sudo ufw enable
+         expect "operation (y|n)?"
+         send "y\r"
+         expect eof
+EOF
+      fi
+      
+      # Enable the IP forwarding after a potential reboot.
+      sudo sysctl -w net.ipv4.ip_forward=1
+      
+   fi
    
 }
 
@@ -666,12 +686,15 @@ EOF
    # 2. (ecryptfs-utils) 
    # 3. (expect) 
    # 4. (lsof)
-   # 5. (Uncomplicated Firewall, UFW)
+   # 5. (nmap)
+   # 6. (sshpass)
+   # 7. (Uncomplicated Firewall, UFW)
       # Perform basic firewall configuration i.e.
          # a. Allow outgoing traffic.
          # b. Deny incoming traffic.
-         # c. Allow inbound SSH connections on port 22.
-   # 6. (haveged OR rng-tools)
+         # c. Allow traffic through the firewall.
+         # d. Allow inbound SSH connections on port 22.
+   # 8. (haveged OR rng-tools)
 
 fluidityServerConfiguration () {
 
@@ -698,6 +721,14 @@ fluidityServerConfiguration () {
       if ! [ -x "$(command -v lsof)" ]; then
          sudo apt-get -y install lsof
       fi
+      # Verify and if not present install "NMAP"
+      if ! [ -x "$(command -v nmap)" ]; then
+         sudo apt-get -y install nmap
+      fi
+      # Verify and if not present install "SSHPASS"
+      if ! [ -x "$(command -v sshpass)" ]; then
+         sudo apt-get -y install sshpass
+      fi
       # Verify and if not present install "UFW", 
       # also perform the initial Firewall configuration.
       if ! [ -x "$(command -v ufw)" ]; then
@@ -711,6 +742,8 @@ fluidityServerConfiguration () {
          sudo ufw default allow outgoing
          # Deny all the incoming traffic
          sudo ufw default deny incoming
+         # Allow traffic to be forwarded through UFW
+         sudo ufw default allow routed
          # Allow SSH connections
          sudo ufw allow ssh
       fi
@@ -953,7 +986,6 @@ fluidityClientConfiguration () {
 # 2. checkFluidityFilesystemIntegrity, no args
 # 3. fluidityRemoteClientConfiguration, with args ($3), ($5), ($2)
 # 4. remoteSeekAndEncryptDaemonInstallation ($3), ($5), ($1), ($2)
-# 4. changeRemoteHostName, with args ($2), ($3), ($5)
 
 # Calls the script: NONE
 
@@ -1097,10 +1129,6 @@ EOF
 '\nlocal client_IP_address='$3\
 '\nlocal client_username='$5\
    > ~/Fluidity_Server/client.$1/basic_client_info.txt
-   
-   # Invoke function changeRemoteHostName to change client hostname
-   # to fluidity_client_[SSH_ID].
-   changeRemoteHostName "fluidity_client_$1" $3 $5
    
    # Invoke fluidityRemoteClientConfiguration to
    # install .Fluidity's essential programs and basic firewall
@@ -1566,6 +1594,7 @@ EOF
             
             sudo ufw default allow outgoing
             sudo ufw default deny incoming
+            sudo ufw default allow routed
             
             sudo ufw allow ssh
             
@@ -1593,6 +1622,7 @@ EOF
             
             sudo ufw default allow outgoing
             sudo ufw default deny incoming
+            sudo ufw default allow routed
             
             sudo ufw allow ssh
             
@@ -2666,6 +2696,7 @@ installSSLcertificates () {
    openssl genpkey -algorithm RSA -out servercon.$1.key \
       -aes-256-cbc -pass pass:${s_password[$array_index]}
       
+   # tQscITd
    # Generate a self signed cert
 expect << EOF
 	   spawn openssl req \
@@ -2844,7 +2875,8 @@ reinstallSSLcerts () {
    # Generate a private key
    openssl genpkey -algorithm RSA -out servercon.$1.key \
       -aes-256-cbc -pass pass:${s_password[$array_index]}
-      
+   
+   # tQscITd
    # Generate a self signed cert
 expect << EOF
 	   spawn openssl req \
@@ -2999,6 +3031,7 @@ clientFolderCreation () {
 
 clientSSLinstallation () {
   
+   # tQscITd
    if [[ ! -e ~/Fluidity_Server/Generated_Scripts/genSCRIPT_clientSSLinstallation.sh ]]; then
    
       echo -e \
@@ -3103,8 +3136,8 @@ deleteSSLpair () {
    
       echo -e \
 '\n'\
-' rm ~/Fluidity_Client/connection.$1/clientcon.'$1'.pem\n'\
-' rm ~/Fluidity_Client/connection.$1/servercon.'$1'.crt\n'\
+'rm ~/Fluidity_Client/connection.$1/clientcon.*.pem\n'\
+'rm ~/Fluidity_Client/connection.$1/servercon.*.crt\n'\
       > ~/Fluidity_Server/Generated_Scripts/genSCRIPT__deleteClientSSLpair.sh
       
    fi
@@ -3571,9 +3604,11 @@ stopFluidity () {
    # and termination_force_ping are all equal to 1. If all are 1,
    # delete the Intershell File Variables in runTimeVars folder.
    while [ true ]; do
-   echo "client_is_terminated: $(getClientIsTerminated $fluidity_id)"
-   echo "server_is_terminated: $(getServerIsTerminated $fluidity_id)"
-   echo "terminationForcePing is: $(getTerminationForcePing $fluidity_id)"
+   # rZ7y4zq
+   # Debugging Section
+   # echo "client_is_terminated: $(getClientIsTerminated $fluidity_id)"
+   # echo "server_is_terminated: $(getServerIsTerminated $fluidity_id)"
+   # echo "terminationForcePing is: $(getTerminationForcePing $fluidity_id)"
       if [[ $(getServerIsTerminated $fluidity_id) -eq 1 && $(getClientIsTerminated $fluidity_id) -eq 1 && $(getTerminationForcePing $fluidity_id) -ne 0 ]]; then
          
          # .Fluidity Finite State Machine 
@@ -3644,8 +3679,9 @@ stopFluidity () {
 
 openPort () {
    
+   # S99zBE5
    # UFW: Rule change for port $1
-   sudo ufw allow $1
+   sudo ufw allow $1 &>/dev/null
    
 }
 
@@ -3669,8 +3705,9 @@ openPort () {
 
 closePort () {
    
+   # S99zBE5
    # UFW: Rule change for port $1
-   sudo ufw delete allow $1
+   sudo ufw delete allow $1 &>/dev/null
    
 }
 
@@ -3763,8 +3800,9 @@ openTheLocalTunnelInterface () {
    
    interface=$(findInterfaceFromIP $1)
    
-   sudo ufw allow in on $interface
-   sudo ufw allow out on $interface
+   # S99zBE5
+   sudo ufw allow in on $interface &>/dev/null
+   sudo ufw allow out on $interface &>/dev/null
    
 }
 
@@ -3811,9 +3849,10 @@ openTheRemoteTunnelInterface () {
    
       cat << EOF > ~/Fluidity_Server/Generated_Scripts/genSCRIPT_openTheRemoteTunnelInterface.sh
 interface=\$(sudo ifconfig | grep -B 2 $2 | cut -d' ' -f 1 | sed 's/://')
-      
-sudo ufw allow in on \$interface
-sudo ufw allow out on \$interface
+
+# S99zBE5
+sudo ufw allow in on \$interface &>/dev/null
+sudo ufw allow out on \$interface &>/dev/null
    
 EOF
 
@@ -3823,9 +3862,10 @@ EOF
       
       cat << EOF > ~/Fluidity_Server/Generated_Scripts/genSCRIPT_openTheRemoteTunnelInterface.sh
 interface=\$(sudo ifconfig | grep -B 2 $2 | cut -d' ' -f 1 | sed 's/://')
-      
-sudo ufw allow in on \$interface
-sudo ufw allow out on \$interface
+
+# S99zBE5
+sudo ufw allow in on \$interface &>/dev/null
+sudo ufw allow out on \$interface &>/dev/null
    
 EOF
 
@@ -3861,8 +3901,9 @@ closeTheLocalTunnelInterface () {
    
    interface=$(findInterfaceFromIP $1)
    
-   sudo ufw delete allow in on $interface
-   sudo ufw delete allow out on $interface
+   # S99zBE5
+   sudo ufw delete allow in on $interface &>/dev/null
+   sudo ufw delete allow out on $interface &>/dev/null
    
 }
 
@@ -3902,8 +3943,9 @@ closeTheRemoteTunnelInterface () {
       cat << EOF > ~/Fluidity_Server/Generated_Scripts/genSCRIPT_closeTheRemoteTunnelInterface.sh
 interface=\$(sudo ifconfig | grep -B 2 $2 | cut -d' ' -f 1 | sed 's/://')
       
-sudo ufw delete allow in on \$interface
-sudo ufw delete allow out on \$interface
+# S99zBE5
+sudo ufw delete allow in on \$interface &>/dev/null
+sudo ufw delete allow out on \$interface &>/dev/null
    
 EOF
 
@@ -3914,8 +3956,9 @@ EOF
       cat << EOF > ~/Fluidity_Server/Generated_Scripts/genSCRIPT_closeTheRemoteTunnelInterface.sh
 interface=\$(sudo ifconfig | grep -B 2 $2 | cut -d' ' -f 1 | sed 's/://')
       
-sudo ufw delete allow in on \$interface
-sudo ufw delete allow out on \$interface
+# S99zBE5
+sudo ufw delete allow in on \$interface &>/dev/null
+sudo ufw delete allow out on \$interface &>/dev/null
    
 EOF
 
@@ -3966,15 +4009,19 @@ terminationForcePing () {
    # runPersistentSOCATClient is currently in ACTIVE state.
    if ! kill -0 $(getSleepPid $1); then
 
-      # Information message to user.
-      echo "Not in sleep mode"
+      # rZ7y4zq
+      # Debugging section.
+      # echo "Not in sleep mode"
+      :
    
    # Case 2: The proper scenario.
    # $sleep_id is 0. There is no sleeping process to kill.
    elif [[ $(getSleepPid $1) -eq 0 ]]; then
 
-      # Information message to user.
-      echo "Not in sleep mode. sleep_pid = 0."
+      # rZ7y4zq
+      # Debugging section.
+      # echo "Not in sleep mode. sleep_pid = 0."
+      :
 
    # Case 3: Kill the sleeping process.
    # A sleeping process is currently running. We fetch the PID from
@@ -4244,21 +4291,21 @@ establishSOCATlink () {
    
    # Invoke openPort
    # Change UFW rules to allow the traffic through the designated port.
-   openPort $3
+   openPort $3 &>/dev/null
    
    # Invoke storeSOCATlinkStateInformation
    # Export the variables that this instance is running on for Fluidity's
    # monitoring functions.
    storeSOCATlinkStateInformation $1 $2 $3 $4 $5 $6 $7 $8 $9
    
+   # S99zBE5
    # Invoke runPersistentSOCATServer
-   # Start the server and run the process in the background. Silence the
-   # output.
+   # Start the server and run the process in the background. Suppress the
+   # command line output.
    (runPersistentSOCATServer $1 $2 $3 $7 $9) &>/dev/null &
    
    # Invoke runPersistentSOCATClient
    # Start the remote client and run the process in the background. 
-   # Silence the output.
    (runPersistentSOCATClient $1 $4 $3 $5 $6 $7 $8 $9) &
    
    # Invoke reportWhenLinkIsEstablished
@@ -4777,8 +4824,9 @@ runPersistentSOCATClient () {
    # $temp_id: A temporary placeholder that keeps the sleep pid. 
    local temp_pid=0
    
+   # rZ7y4zq
    # Debugging information message 1
-   echo "Outside the Loop. Initiating."
+   # echo "Outside the Loop. Initiating."
    
    # Main Loop: Adding persistency to the SOCAT client process.
    while [ $(getAllowExecution $1) -eq 1 ];
@@ -4790,20 +4838,26 @@ runPersistentSOCATClient () {
       # State change to: PINGING
       setFluidityConnectionStatus $1 "PINGING"
 
+      echo -e '\n'
+
       # .Fluidity client responds.
       if ping -c 6 $4; then
+      
+         echo -e '\n'
       
          # Reset $ping_delay to 2 seconds.
          ping_delay=2
          
+         # rZ7y4zq
          # Debugging information message 4
-         echo "Inside the Loop and proceeding with runSOCATclient."
-         echo "Ping delay is: $ping_delay"
+         # echo "Inside the Loop and proceeding with runSOCATclient."
+         # echo "Ping delay is: $ping_delay"
          
+         # S99zBE5
          # Invoke checkForConnectionFolderAndDecrypt:
          # Client communication has been established. Now see whether
          # the client folder is decrypted. If not, then decrypt it.
-         checkForConnectionFolderAndDecrypt $1 $4 $5
+         checkForConnectionFolderAndDecrypt $1 $4 $5 &>/dev/null 
          
          # The following section covers the possiblity of a
          # corrupted - incomplete SSL installation. 
@@ -4857,10 +4911,11 @@ runPersistentSOCATClient () {
          # Update intershell variable $ping_delay
          setPingDelay $1 $ping_delay
          
+         # S99zBE5
          # Invoke runSOCATclient:
          # Client is available and the FLUIDITY home folder in remote 
          # machine is decrypted. Proceed with runSOCATclient.
-         runSOCATclient $1 $2 $3 $4 $5 $6 $7 $8
+         runSOCATclient $1 $2 $3 $4 $5 $6 $7 $8 &>/dev/null
            
          if [[ $(getFluidityConnectionStatus $1) == "TERMINATING" || \
          $(getFluidityConnectionStatus $1) == "TERMINATION_PENDING" ]]; then 
@@ -4874,9 +4929,10 @@ runPersistentSOCATClient () {
       # .Fluidity client doesn't respond.
       else
       
+         # rZ7y4zq
          # Debugging information message 5
-         echo "Inside the Loop, but Pinging failed."
-         echo "Ping delay is: $ping_delay"
+         # echo "Inside the Loop, but Pinging failed."
+         # echo "Ping delay is: $ping_delay"
          
          # .Fluidity Finite State Machine 
          # State change to: SLEEPING
@@ -4890,9 +4946,10 @@ runPersistentSOCATClient () {
          # From there on pinging will occur every 600 seconds.
          if [[ $ping_delay -ge 600 ]]; then
          
+            # rZ7y4zq
             # Debugging information message 6
-            echo "Inside the Loop. Pinging above 600secs."
-            echo "Ping delay is: $ping_delay"
+            # echo "Inside the Loop. Pinging above 600secs."
+            # echo "Ping delay is: $ping_delay"
             
             # Set $ping_delay to 600.
             ping_delay=600
@@ -4918,9 +4975,10 @@ runPersistentSOCATClient () {
          # Next ping in $ping_delay secs.
          else
          
+            # rZ7y4zq
             # Debugging information message 7
-            echo "Inside the Loop. Pinging below 600secs."
-            echo "Ping delay is: $ping_delay"
+            # echo "Inside the Loop. Pinging below 600secs."
+            # echo "Ping delay is: $ping_delay"
             
             echo "Client $4 is unreachable. Retrying in $ping_delay seconds or forcePing."
             
@@ -4947,8 +5005,9 @@ runPersistentSOCATClient () {
       
    done
    
+   # rZ7y4zq
    # Debugging information message 8
-   echo "Outside the Loop. Main Loop terminated."
+   # echo "Outside the Loop. Main Loop terminated."
    
    # Signal that runPersistentSOCATClient has broken out from the main
    # Loop and completed execution.
@@ -5902,7 +5961,6 @@ reportWhenFirewallRulesAreAdded () {
       
          # Do a UFW status report for that specific port.
          sudo ufw status verbose | grep -e $2
-         
          # Once you report, break the loop.
          break
          
@@ -6005,15 +6063,19 @@ forcePing () {
    # runPersistentSOCATClient is currently in ACTIVE state.
    if ! kill -0 $(getSleepPid $fluidity_id); then
 
-      # Information message to user.
-      echo "Not in sleep mode"
+      # rZ7y4zq
+      # Debugging section.
+      # echo "Not in sleep mode"
+      :
    
    # Case 2: The proper scenario.
    # $sleep_id is 0. There is no sleeping process to kill.
    elif [[ $(getSleepPid $fluidity_id) -eq 0 ]]; then
 
-      # Information message to user.
-      echo "Not in sleep mode. sleep_pid = 0."
+      # rZ7y4zq
+      # Debugging section.
+      # echo "Not in sleep mode. sleep_pid = 0."
+      :
 
    # Case 3: Kill the sleeping process.
    # A sleeping process is currently running. We fetch the PID from
@@ -6244,31 +6306,6 @@ displaySerialDevices () {
 
 }
 
-# Arguments: ($1), ($2), ($3), ($4)
-# $1: New hostname.
-# $2: Client IP address.
-# $3: Client username
-
-# Sourced Variables: NONE
-
-# Intershell File Variables in use: NONE
-
-# Global Variables in use: NONE
-
-# Generates: Nothing
-
-# Invokes Functions: NONE
-
-# Calls the script: NONE
-
-# Function Description: Auxillary function to SSHclientAccess that 
-# changes the hostname to hostname $1 on target client.
-changeRemoteHostName () {
-
-   # heefhEKX
-   ssh $3@$2 sudo hostnamectl set-hostname $1
-
-}
 
 # Arguments: ($1)
 # $1: IP address
