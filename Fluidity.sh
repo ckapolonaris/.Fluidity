@@ -58,6 +58,7 @@
 # 6. General Auxillary Functions
 #		recallSSHidentity
 #		displaySerialDevices
+#		changeRemoteHostName
 #		findInterfaceFromIP
 # 7. VPN Routing
 #		addServerRoute
@@ -192,6 +193,7 @@
 # 	8.1 Public Functions
 #		recallSSHidentity +
 #		displaySerialDevices +
+#		changeRemoteHostName +
 #		findInterfaceFromIP +
 # 	8.2 Private Functions
 #		giveAnEntropyBoost +
@@ -200,7 +202,7 @@
 #		checkRemoteEntropy +
 #		getNetstatConnectionStatus +
 #		getTheRemotePort +
-#		removeFluidityClientConfigInfoFromSSHConfig + 10 functions
+#		removeFluidityClientConfigInfoFromSSHConfig + 11 functions
 # 9. Managing Internal Interfaces
 # 	9.1 Public Functions
 #		setInternalInterface + 
@@ -212,14 +214,12 @@
 #		addClientRoute +
 #		removeClientRoute + 4 functions
 
-# Counting 94 functions in total.
+# Counting 95 functions in total.
 
 # List of Quickfind tags:
-# 1.  Branching points that define the .Fluidity flavour to be used: kzjFgtUz
-# 2.  Points in which .Fluidity does an SSH call to a client machine: heefhEKX
-# 3.  Points in which .Fluidity uses SCP to sent a file to a client machine: vvtSng7u
-# 4.  Debugging section: rZ7y4zq
-# 5.  Command line suppressor: S99zBE5 
+# 1. .Fluidity Flavour branching points: kzjFgtUz
+# 2. .Fluidity does SSH to client machine: heefhEKX
+# 3. .Fluidity transfers files via SCP to client machine: vvtSng7u
 
 # List of GREP tags:
 # 1. Deduce the external interface IP from UFW SSH rule: HFBCvIa7h
@@ -635,6 +635,7 @@ EOF
    cd Fluidity_Server
    
    # Enable the IP forwarding after a potential reboot.
+   
    sudo sysctl -w net.ipv4.ip_forward=1
    
 }
@@ -665,15 +666,12 @@ EOF
    # 2. (ecryptfs-utils) 
    # 3. (expect) 
    # 4. (lsof)
-   # 5. (nmap)
-   # 6. (sshpass)
-   # 7. (Uncomplicated Firewall, UFW)
+   # 5. (Uncomplicated Firewall, UFW)
       # Perform basic firewall configuration i.e.
          # a. Allow outgoing traffic.
          # b. Deny incoming traffic.
-         # c. Allow traffic through the firewall.
-         # d. Allow inbound SSH connections on port 22.
-   # 8. (haveged OR rng-tools)
+         # c. Allow inbound SSH connections on port 22.
+   # 6. (haveged OR rng-tools)
 
 fluidityServerConfiguration () {
 
@@ -700,14 +698,6 @@ fluidityServerConfiguration () {
       if ! [ -x "$(command -v lsof)" ]; then
          sudo apt-get -y install lsof
       fi
-      # Verify and if not present install "NMAP"
-      if ! [ -x "$(command -v nmap)" ]; then
-         sudo apt-get -y install nmap
-      fi
-      # Verify and if not present install "SSHPASS"
-      if ! [ -x "$(command -v sshpass)" ]; then
-         sudo apt-get -y install sshpass
-      fi
       # Verify and if not present install "UFW", 
       # also perform the initial Firewall configuration.
       if ! [ -x "$(command -v ufw)" ]; then
@@ -721,8 +711,6 @@ fluidityServerConfiguration () {
          sudo ufw default allow outgoing
          # Deny all the incoming traffic
          sudo ufw default deny incoming
-         # Allow traffic to be forwarded through UFW
-         sudo ufw default allow routed
          # Allow SSH connections
          sudo ufw allow ssh
       fi
@@ -965,6 +953,7 @@ fluidityClientConfiguration () {
 # 2. checkFluidityFilesystemIntegrity, no args
 # 3. fluidityRemoteClientConfiguration, with args ($3), ($5), ($2)
 # 4. remoteSeekAndEncryptDaemonInstallation ($3), ($5), ($1), ($2)
+# 4. changeRemoteHostName, with args ($2), ($3), ($5)
 
 # Calls the script: NONE
 
@@ -1108,6 +1097,10 @@ EOF
 '\nlocal client_IP_address='$3\
 '\nlocal client_username='$5\
    > ~/Fluidity_Server/client.$1/basic_client_info.txt
+   
+   # Invoke function changeRemoteHostName to change client hostname
+   # to fluidity_client_[SSH_ID].
+   changeRemoteHostName "fluidity_client_$1" $3 $5
    
    # Invoke fluidityRemoteClientConfiguration to
    # install .Fluidity's essential programs and basic firewall
@@ -1573,7 +1566,6 @@ EOF
             
             sudo ufw default allow outgoing
             sudo ufw default deny incoming
-            sudo ufw default allow routed
             
             sudo ufw allow ssh
             
@@ -1601,7 +1593,6 @@ EOF
             
             sudo ufw default allow outgoing
             sudo ufw default deny incoming
-            sudo ufw default allow routed
             
             sudo ufw allow ssh
             
@@ -3653,9 +3644,8 @@ stopFluidity () {
 
 openPort () {
    
-   # S99zBE5
    # UFW: Rule change for port $1
-   sudo ufw allow $1 &>/dev/null
+   sudo ufw allow $1
    
 }
 
@@ -3679,9 +3669,8 @@ openPort () {
 
 closePort () {
    
-   # S99zBE5
    # UFW: Rule change for port $1
-   sudo ufw delete allow $1 &>/dev/null
+   sudo ufw delete allow $1
    
 }
 
@@ -3774,9 +3763,8 @@ openTheLocalTunnelInterface () {
    
    interface=$(findInterfaceFromIP $1)
    
-   # S99zBE5
-   sudo ufw allow in on $interface &>/dev/null
-   sudo ufw allow out on $interface &>/dev/null
+   sudo ufw allow in on $interface
+   sudo ufw allow out on $interface
    
 }
 
@@ -3823,10 +3811,9 @@ openTheRemoteTunnelInterface () {
    
       cat << EOF > ~/Fluidity_Server/Generated_Scripts/genSCRIPT_openTheRemoteTunnelInterface.sh
 interface=\$(sudo ifconfig | grep -B 2 $2 | cut -d' ' -f 1 | sed 's/://')
-
-# S99zBE5
-sudo ufw allow in on \$interface &>/dev/null
-sudo ufw allow out on \$interface &>/dev/null
+      
+sudo ufw allow in on \$interface
+sudo ufw allow out on \$interface
    
 EOF
 
@@ -3836,10 +3823,9 @@ EOF
       
       cat << EOF > ~/Fluidity_Server/Generated_Scripts/genSCRIPT_openTheRemoteTunnelInterface.sh
 interface=\$(sudo ifconfig | grep -B 2 $2 | cut -d' ' -f 1 | sed 's/://')
-
-# S99zBE5
-sudo ufw allow in on \$interface &>/dev/null
-sudo ufw allow out on \$interface &>/dev/null
+      
+sudo ufw allow in on \$interface
+sudo ufw allow out on \$interface
    
 EOF
 
@@ -3875,9 +3861,8 @@ closeTheLocalTunnelInterface () {
    
    interface=$(findInterfaceFromIP $1)
    
-   # S99zBE5
-   sudo ufw delete allow in on $interface &>/dev/null
-   sudo ufw delete allow out on $interface &>/dev/null
+   sudo ufw delete allow in on $interface
+   sudo ufw delete allow out on $interface
    
 }
 
@@ -3917,9 +3902,8 @@ closeTheRemoteTunnelInterface () {
       cat << EOF > ~/Fluidity_Server/Generated_Scripts/genSCRIPT_closeTheRemoteTunnelInterface.sh
 interface=\$(sudo ifconfig | grep -B 2 $2 | cut -d' ' -f 1 | sed 's/://')
       
-# S99zBE5
-sudo ufw delete allow in on \$interface &>/dev/null
-sudo ufw delete allow out on \$interface &>/dev/null
+sudo ufw delete allow in on \$interface
+sudo ufw delete allow out on \$interface
    
 EOF
 
@@ -3930,9 +3914,8 @@ EOF
       cat << EOF > ~/Fluidity_Server/Generated_Scripts/genSCRIPT_closeTheRemoteTunnelInterface.sh
 interface=\$(sudo ifconfig | grep -B 2 $2 | cut -d' ' -f 1 | sed 's/://')
       
-# S99zBE5
-sudo ufw delete allow in on \$interface &>/dev/null
-sudo ufw delete allow out on \$interface &>/dev/null
+sudo ufw delete allow in on \$interface
+sudo ufw delete allow out on \$interface
    
 EOF
 
@@ -4261,24 +4244,22 @@ establishSOCATlink () {
    
    # Invoke openPort
    # Change UFW rules to allow the traffic through the designated port.
-   openPort $3 &>/dev/null
+   openPort $3
    
    # Invoke storeSOCATlinkStateInformation
    # Export the variables that this instance is running on for Fluidity's
    # monitoring functions.
    storeSOCATlinkStateInformation $1 $2 $3 $4 $5 $6 $7 $8 $9
    
-   # S99zBE5
    # Invoke runPersistentSOCATServer
    # Start the server and run the process in the background. Silence the
    # output.
    (runPersistentSOCATServer $1 $2 $3 $7 $9) &>/dev/null &
    
-   # S99zBE5
    # Invoke runPersistentSOCATClient
    # Start the remote client and run the process in the background. 
    # Silence the output.
-   (runPersistentSOCATClient $1 $4 $3 $5 $6 $7 $8 $9) &>/dev/null &
+   (runPersistentSOCATClient $1 $4 $3 $5 $6 $7 $8 $9) &
    
    # Invoke reportWhenLinkIsEstablished
    # Report the link status when the link is detected as established.
@@ -4796,7 +4777,6 @@ runPersistentSOCATClient () {
    # $temp_id: A temporary placeholder that keeps the sleep pid. 
    local temp_pid=0
    
-   # rZ7y4zq
    # Debugging information message 1
    echo "Outside the Loop. Initiating."
    
@@ -4816,7 +4796,6 @@ runPersistentSOCATClient () {
          # Reset $ping_delay to 2 seconds.
          ping_delay=2
          
-         # rZ7y4zq
          # Debugging information message 4
          echo "Inside the Loop and proceeding with runSOCATclient."
          echo "Ping delay is: $ping_delay"
@@ -4895,7 +4874,6 @@ runPersistentSOCATClient () {
       # .Fluidity client doesn't respond.
       else
       
-         # rZ7y4zq
          # Debugging information message 5
          echo "Inside the Loop, but Pinging failed."
          echo "Ping delay is: $ping_delay"
@@ -4912,7 +4890,6 @@ runPersistentSOCATClient () {
          # From there on pinging will occur every 600 seconds.
          if [[ $ping_delay -ge 600 ]]; then
          
-            # rZ7y4zq
             # Debugging information message 6
             echo "Inside the Loop. Pinging above 600secs."
             echo "Ping delay is: $ping_delay"
@@ -4941,7 +4918,6 @@ runPersistentSOCATClient () {
          # Next ping in $ping_delay secs.
          else
          
-            # rZ7y4zq
             # Debugging information message 7
             echo "Inside the Loop. Pinging below 600secs."
             echo "Ping delay is: $ping_delay"
@@ -4971,7 +4947,6 @@ runPersistentSOCATClient () {
       
    done
    
-   # rZ7y4zq
    # Debugging information message 8
    echo "Outside the Loop. Main Loop terminated."
    
@@ -6269,6 +6244,31 @@ displaySerialDevices () {
 
 }
 
+# Arguments: ($1), ($2), ($3), ($4)
+# $1: New hostname.
+# $2: Client IP address.
+# $3: Client username
+
+# Sourced Variables: NONE
+
+# Intershell File Variables in use: NONE
+
+# Global Variables in use: NONE
+
+# Generates: Nothing
+
+# Invokes Functions: NONE
+
+# Calls the script: NONE
+
+# Function Description: Auxillary function to SSHclientAccess that 
+# changes the hostname to hostname $1 on target client.
+changeRemoteHostName () {
+
+   # heefhEKX
+   ssh $3@$2 sudo hostnamectl set-hostname $1
+
+}
 
 # Arguments: ($1)
 # $1: IP address
