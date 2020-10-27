@@ -49,7 +49,7 @@
 # 3. Connection Management Functions
 #		addFluidityConnection
 #		removeFluidityConnection
-#		renewSSLcerts
+#		renewSSL
 # 4. .Fluidity Engine Functions
 #		runFluidity
 #		stopFluidity
@@ -119,7 +119,7 @@
 # 	5.1 Public Functions
 #		addFluidityConnection +
 #		removeFluidityConnection +
-#		renewSSLcerts +
+#		renewSSL +
 # 	5.2 Private Functions
 #		internalSSLrenew +
 #		installSSLcertificates +
@@ -605,7 +605,7 @@ mountFluidityServerFolder () {
    if ! [ -d ~/Fluidity_Server ]; then
    
       echo -e \
-      '\n.Fluidity server folder missing.'\
+      '\n.Fluidity server folder is missing.'\
       '\nPlease check your .Fluidity installation.'
       return
       
@@ -992,13 +992,25 @@ fluidityClientConfiguration () {
 # Function Description: Add a .Fluidity client.
 addFluidityClient () {
 
-   # Safety check 1: Check whether target client.[SSH_ID] already exists.
+   # Safety check 1: Check whether Fluidity_Server folder is present 
+   # (functionality contained within mountFluidityServerFolder) and 
+   # decrypted.
+   if [ -z "$(df -T | grep -E 'Fluidity_Server ecryptfs')" ] ; then 
+
+      # Fluidity_Server folder found encrpyted. Use 
+      # mountFluidityServerFolder to decrypt it.
+      # Invoke mountFluidityServerFolder
+      mountFluidityServerFolder
+      
+   fi
+
+   # Safety check 2: Check whether target client.[SSH_ID] already exists.
    if [ -d ~/Fluidity_Server/client.$1 ]; then
       echo "Client $1 already exists"
       return
    fi
 
-   # Safety check 2: Check whether the server responds to 
+   # Safety check 3: Check whether the server responds to 
    # pinging. 
    if ! ping -c 3 $2; then
       clear
@@ -1010,7 +1022,7 @@ addFluidityClient () {
       echo "Connectivity test to server $3 succeeded."
    fi
 
-   # Safety check 3: Check whether target client.[SSH_ID] responds to 
+   # Safety check 4: Check whether target client.[SSH_ID] responds to 
    # pinging. 
    if ! ping -c 3 $3; then
       clear
@@ -1022,14 +1034,14 @@ addFluidityClient () {
       echo "Connectivity test to host $3 succeeded. Proceeding with client configuration."
    fi
    
-   # Safety check 4: Stop execution if SSH is not active on client 
+   # Safety check 5: Stop execution if SSH is not active on client 
    # machine.
    if ! nmap $3 -PN -p ssh | grep open; then
       echo "Activate SSH on target machine"
       return
    fi
 
-   # Safety check 5: Verify that local entropy is above target value 1000. 
+   # Safety check 6: Verify that local entropy is above target value 1000. 
    if [[ $(checkLocalEntropy) == 1 ]]; then
      echo "Server entropy is above 1000. Carrying on with addFluidityClient."
    else
@@ -1037,7 +1049,7 @@ addFluidityClient () {
      return
    fi
    
-   # Safety check 6: Perform an overall .Fluidity file structure
+   # Safety check 7: Perform an overall .Fluidity file structure
    # integrity check.
    if [[ $(checkFluidityFilesystemIntegrity) == 1 ]]; then
       echo "Fluidity system file integrity test passed"
@@ -1170,6 +1182,18 @@ EOF
 # Function Description: Remove a .Fluidity client.
 removeFluidityClient () {
    
+   # Safety check 1: Check whether Fluidity_Server folder is present 
+   # (functionality contained within mountFluidityServerFolder) and 
+   # decrypted.
+   if [ -z "$(df -T | grep -E 'Fluidity_Server ecryptfs')" ] ; then 
+
+      # Fluidity_Server folder found encrpyted. Use 
+      # mountFluidityServerFolder to decrypt it.
+      # Invoke mountFluidityServerFolder
+      mountFluidityServerFolder
+      
+   fi
+   
    # Source the variables:
       # 1. $server_IP_address
       # 2. $client_IP_address
@@ -1177,13 +1201,13 @@ removeFluidityClient () {
       # 4. $random_client_port
    source ~/Fluidity_Server/client.$1/basic_client_info.txt
    
-   # Safety check 1: Check whether target client.[SSH_ID] already exists.
+   # Safety check 2: Check whether target client.[SSH_ID] already exists.
    if [ ! -d ~/Fluidity_Server/client.$1 ]; then
       echo "Fluidity client $1 does not exist."
       return
    fi
    
-   # Safety check 2: Check whether target client.[SSH_ID] responds to 
+   # Safety check 3: Check whether target client.[SSH_ID] responds to 
    # pinging. 
    if ! ping -c 3 $client_IP_address; then
       clear
@@ -1886,8 +1910,8 @@ remoteSeekAndEncryptDaemonInstallation () {
       '\n'\
       '\n   # invoke a sleep process to delay the next execution circle.'\
       '\n   # Sleeping time is set between a random interval between '\
-      '\n   # of 5 to 60 seconds.'\
-      '\n   sleep $(shuf -i 5-60 -n1)'\
+      '\n   # of 20 to 60 seconds.'\
+      '\n   sleep $(shuf -i 20-60 -n1)'\
       '\n'\
       '\ndone' \
          > ~/Fluidity_Server/Generated_Scripts/FLdaemon_SeekAndEncrypt.sh
@@ -1978,8 +2002,8 @@ remoteSeekAndEncryptDaemonInstallation () {
       '\n'\
       '\n   # invoke a sleep process to delay the next execution circle.'\
       '\n   # Sleeping time is set between a random interval between '\
-      '\n   # of 5 to 60 seconds.'\
-      '\n   sleep $(shuf -i 5-60 -n1)'\
+      '\n   # of 20 to 60 seconds.'\
+      '\n   sleep $(shuf -i 20-60 -n1)'\
       '\n'\
       '\ndone' \
          > ~/Fluidity_Server/Generated_Scripts/FLdaemon_SeekAndEncrypt.sh
@@ -2087,8 +2111,19 @@ remoteSeekAndEncryptDaemonInstallation () {
 # Calls the script: NONE
 
 # Function Description: Add a .Fluidity connection to target client.
-   
 addFluidityConnection () {
+   
+   # Safety check 1: Check whether Fluidity_Server folder is present 
+   # (functionality contained within mountFluidityServerFolder) and 
+   # decrypted.
+   if [ -z "$(df -T | grep -E 'Fluidity_Server ecryptfs')" ] ; then 
+
+      # Fluidity_Server folder found encrpyted. Use 
+      # mountFluidityServerFolder to decrypt it.
+      # Invoke mountFluidityServerFolder
+      mountFluidityServerFolder
+      
+   fi
    
    # Source the variables:
       # 1. $server_IP_address
@@ -2097,14 +2132,14 @@ addFluidityConnection () {
       # 4. $random_client_port
    source ~/Fluidity_Server/client.$1/basic_client_info.txt
    
-   # Safety check 1: Check whether target connection.[SSH_ID.SSL_ID] 
+   # Safety check 2: Check whether target connection.[SSH_ID.SSL_ID] 
    # already exists.
    if [ -d ~/Fluidity_Server/client.$1/connection.$1.$2 ]; then
       echo "Fluidity Connection $1.$2 already exists"
       return
    fi
    
-   # Safety check 2: Check whether target client.[SSH_ID] responds to 
+   # Safety check 3: Check whether target client.[SSH_ID] responds to 
    # pinging.  
    if ! ping -c 3 $client_IP_address; then
       clear
@@ -2116,12 +2151,12 @@ addFluidityConnection () {
       echo "Connectivity test to host $client_IP_address succeeded. Proceeding with client configuration."
    fi
    
-   # Safety check 3: Recall the SSH identity in case of a recent restart.
+   # Safety check 4: Recall the SSH identity in case of a recent restart.
    if ! ssh-add -l | grep client.$1; then
       recallSSHidentity $1
    fi
    
-   # Safety check 4: Perform a .Fluidity file integrity check.
+   # Safety check 5: Perform a .Fluidity file integrity check.
    if [[ $(checkFluidityFilesystemIntegrity) == 1 ]]; then
       echo "Fluidity system file integrity test passed"
    else
@@ -2160,8 +2195,20 @@ addFluidityConnection () {
 
 removeFluidityConnection () {
 
-   # Safety Check 1
-   # Request connection removal while the connection is still active.
+   # Safety check 1: Check whether Fluidity_Server folder is present 
+   # (functionality contained within mountFluidityServerFolder) and 
+   # decrypted.
+   if [ -z "$(df -T | grep -E 'Fluidity_Server ecryptfs')" ] ; then 
+
+      # Fluidity_Server folder found encrpyted. Use 
+      # mountFluidityServerFolder to decrypt it.
+      # Invoke mountFluidityServerFolder
+      mountFluidityServerFolder
+      
+   fi
+
+   # Safety Check 2: Request connection removal while the connection is 
+   # still active.
    if [ -f ~/Fluidity_Server/client.$1/connection.$1.$2/link_information.txt ]; then
       echo "connection.$1.$2 is currently ACTIVE. Use stopFluidity $1 $2 to close the connection."
       return
@@ -2239,9 +2286,21 @@ removeFluidityConnection () {
 
 renewSSL () {
    
+   # Safety check 1: Check whether Fluidity_Server folder is present 
+   # (functionality contained within mountFluidityServerFolder) and 
+   # decrypted.
+   if [ -z "$(df -T | grep -E 'Fluidity_Server ecryptfs')" ] ; then 
+
+      # Fluidity_Server folder found encrpyted. Use 
+      # mountFluidityServerFolder to decrypt it.
+      # Invoke mountFluidityServerFolder
+      mountFluidityServerFolder
+      
+   fi
+   
    # Case 1: Act upon an active link.
 
-   # link_information.txt exists.
+   # Condition: link_information.txt exists.
    if [ -f ~/Fluidity_Server/client.$1/connection.$1.$2/link_information.txt ]; then
    
       # Information message: Give feedback back to user.
@@ -2308,7 +2367,7 @@ renewSSL () {
       echo "Client - Server SSL certificates for connection $1.$2 renewed successfully."
       
    # Case 2: Act upon an inactive INACTIVE link.
-   # link_information.txt is missing.
+   # Condition: link_information.txt is missing.
    
    # Check that basic_client_info.txt and connection.[SSH_ID.SSL_ID]
    # exists.
@@ -3295,14 +3354,26 @@ deleteDoNotEncryptToken () {
 runFluidity () {
    
    
-   # Safety check 1: Verify that the total number arguments are no less than 7.
+   # Safety check 1: Check whether Fluidity_Server folder is present 
+   # (functionality contained within mountFluidityServerFolder) and 
+   # decrypted.
+   if [ -z "$(df -T | grep -E 'Fluidity_Server ecryptfs')" ] ; then 
+
+      # Fluidity_Server folder found encrpyted. Use 
+      # mountFluidityServerFolder to decrypt it.
+      # Invoke mountFluidityServerFolder
+      mountFluidityServerFolder
+      
+   fi
+   
+   # Safety check 2: Verify that the total number arguments are no less than 7.
    if [ "$#" -ne 7 ]; then
       echo "Illegal number of parameters"
       return
    fi
    
    # kzjFgtUz
-   # Safety check 2: Argument $1 only -s or -t
+   # Safety check 3: Argument $1 only -s or -t
    if ! [[ $1 == "-s" || $1 == "-t" ]]; then
       echo -e "Acceptable values \"-s\" SERIAL or \"-t\" TUNNEL."
       return
@@ -3315,7 +3386,7 @@ runFluidity () {
       # 4. $random_client_port
    source ~/Fluidity_Server/client.$2/basic_client_info.txt
    
-   # Safety check 3: Check whether targer connection exists.
+   # Safety check 4: Check whether targer connection exists.
    if [ ! -d ~/Fluidity_Server/client.$2/connection.$2.$3 ]; then
       # Information message to user.
       echo "No such link exists"
@@ -3323,7 +3394,7 @@ runFluidity () {
    fi
    
    # kzjFgtUz
-   # Safety check 4: Check whether target .Fluidity connection is
+   # Safety check 5: Check whether target .Fluidity connection is
    # ACTIVE. If not, then take the precautionary step to delete any
    # state information file, caused from an adnormal shutdown.
    if [[ $(getNetstatConnectionStatus $4) == "ESTABLISHED" ]]\
@@ -3378,7 +3449,7 @@ runFluidity () {
       
    fi
    
-   # Safety check 5: Check whether another ACTIVE link exists with
+   # Safety check 6: Check whether another ACTIVE link exists with
    # the same port.
    if netstat -atnp 2>/dev/null | grep $4; then
       # Information message to user.
@@ -3387,7 +3458,7 @@ runFluidity () {
    fi
    
    # kzjFgtUz
-   # Safety check 6: Check whether the server IP address or server Serial 
+   # Safety check 7: Check whether the server IP address or server Serial 
    # device is already in use
    if ifconfig | grep $5 || lsof | grep -e $5; then
       if [[ "$1" == -s ]]; then
@@ -3403,7 +3474,7 @@ runFluidity () {
    fi
    
    # kzjFgtUz
-   # Safety check 7: Check whether target client IP address is already 
+   # Safety check 8: Check whether target client IP address is already 
    # in use.
    if ifconfig | grep $6; then
       if [[ "$1" == -t ]]; then
@@ -3494,17 +3565,29 @@ runFluidity () {
 
 stopFluidity () {
 
+   # Safety check 1: Check whether Fluidity_Server folder is present 
+   # (functionality contained within mountFluidityServerFolder) and 
+   # decrypted.
+   if [ -z "$(df -T | grep -E 'Fluidity_Server ecryptfs')" ] ; then 
+
+      # Fluidity_Server folder found encrpyted. Use 
+      # mountFluidityServerFolder to decrypt it.
+      # Invoke mountFluidityServerFolder
+      mountFluidityServerFolder
+      
+   fi
+
    # Derive the .Fluidity ID
    local fluidity_id=$(echo $1.$2)
 
-   # Safety check 1: Check whether targer connection exists.
+   # Safety check 2: Check whether targer connection exists.
    if [ ! -d ~/Fluidity_Server/client.$1/connection.$1.$2 ]; then
       # Information message to user.
       echo "No such link exists"
       return
    fi
    
-   # Safety check 2: Check whether the link is INACTIVE.
+   # Safety check 3: Check whether the link is INACTIVE.
    if [ ! -f ~/Fluidity_Server/client.$1/connection.$1.$2/link_information.txt ]; then
       # Information message to user.
       echo "Link $1.$2 is currently INACTIVE."
@@ -3587,7 +3670,7 @@ stopFluidity () {
    # process.
    else 
       
-      # Safety Check 3: Invoke terminationForcePing
+      # Safety Check 4: Invoke terminationForcePing
       # Here, we cover the possibility that .Fluidity lost its client, thus
       # runPersistentSOCATClient is currently in SLEEPING state and is 
       # having an active sleeping process that should first be terminated, 
@@ -4850,14 +4933,18 @@ runPersistentSOCATClient () {
          
          # rZ7y4zq
          # Debugging information message 4
-         # echo "Inside the Loop and proceeding with runSOCATclient."
-         # echo "Ping delay is: $ping_delay"
+         echo "Inside the Loop and proceeding with runSOCATclient."
+         echo "Ping delay is: $ping_delay"
          
          # S99zBE5
          # Invoke checkForConnectionFolderAndDecrypt:
          # Client communication has been established. Now see whether
          # the client folder is decrypted. If not, then decrypt it.
          checkForConnectionFolderAndDecrypt $1 $4 $5 &>/dev/null 
+         
+         # Restart the FLdaemon_SeekAndEncrypt.service to reset its 
+         # timers. 
+         ssh $5@$4 'sudo systemctl restart FLdaemon_SeekAndEncrypt.service'
          
          # The following section covers the possiblity of a
          # corrupted - incomplete SSL installation. 
@@ -4915,7 +5002,7 @@ runPersistentSOCATClient () {
          # Invoke runSOCATclient:
          # Client is available and the FLUIDITY home folder in remote 
          # machine is decrypted. Proceed with runSOCATclient.
-         runSOCATclient $1 $2 $3 $4 $5 $6 $7 $8 &>/dev/null
+         runSOCATclient $1 $2 $3 $4 $5 $6 $7 $8
            
          if [[ $(getFluidityConnectionStatus $1) == "TERMINATING" || \
          $(getFluidityConnectionStatus $1) == "TERMINATION_PENDING" ]]; then 
@@ -6144,13 +6231,25 @@ forcePing () {
 # Function Description: Display the current connection status.
 showLinkStatus () {
    
-   # Safety check 1:
+   # Safety check 1: Check whether Fluidity_Server folder is present 
+   # (functionality contained within mountFluidityServerFolder) and 
+   # decrypted.
+   if [ -z "$(df -T | grep -E 'Fluidity_Server ecryptfs')" ] ; then 
+
+      # Fluidity_Server folder found encrpyted. Use 
+      # mountFluidityServerFolder to decrypt it.
+      # Invoke mountFluidityServerFolder
+      mountFluidityServerFolder
+      
+   fi
+   
+   # Safety check 2:
    # Connection is missing.
    if [ ! -d ~/Fluidity_Server/client.$1/connection.$1.$2 ]; then
       # Message to user.
       echo "connection.$1.$2 does not exist."
       return
-   # Safety check 2:
+   # Safety check 3:
    # Connection is INACTIVE
    elif [ -d ~/Fluidity_Server/client.$1/connection.$1.$2 ]\
     && [ ! -f ~/Fluidity_Server/client.$1/connection.$1.$2/link_information.txt ]; then
@@ -6266,6 +6365,18 @@ showLinkStatus () {
 # Function Description: User function that imports an existing SSH ID,
 # after a server reboot. 
 recallSSHidentity () {
+
+   # Safety check 1: Check whether Fluidity_Server folder is present 
+   # (functionality contained within mountFluidityServerFolder) and 
+   # decrypted.
+   if [ -z "$(df -T | grep -E 'Fluidity_Server ecryptfs')" ] ; then 
+
+      # Fluidity_Server folder found encrpyted. Use 
+      # mountFluidityServerFolder to decrypt it.
+      # Invoke mountFluidityServerFolder
+      mountFluidityServerFolder
+      
+   fi
 
    # Trick to emulate the home directory shortcut (~/) in expect body
    # for ssh-add
@@ -6839,20 +6950,32 @@ removeInternalInterface () {
 # ~/Fluidity_Server/listOfServerRoutes.sh.
 addServerRoute () {
    
-   # Safety check 1: Number of arguments should be no less than 6.
+   # Safety check 1: Check whether Fluidity_Server folder is present 
+   # (functionality contained within mountFluidityServerFolder) and 
+   # decrypted.
+   if [ -z "$(df -T | grep -E 'Fluidity_Server ecryptfs')" ] ; then 
+
+      # Fluidity_Server folder found encrpyted. Use 
+      # mountFluidityServerFolder to decrypt it.
+      # Invoke mountFluidityServerFolder
+      mountFluidityServerFolder
+      
+   fi
+   
+   # Safety check 2: Number of arguments should be no less than 6.
    if [ "$#" -ne 6 ]; then
       echo "Illegal number of parameters"
       return
    fi
    
-   # Safety check 2: Force a specific command syntax.
+   # Safety check 3: Force a specific command syntax.
    if ! [[ $1 == "ip" && $2 == "route" && $3 == "add" && $5 == "via" ]]; then
       echo "Command should be in the form of:" 
       echo "ip route add x.y.z.w/mask via x.y.z.w"
       return
    fi
    
-   # Safety check 3: Cancel execution if this route is already in server
+   # Safety check 4: Cancel execution if this route is already in server
    # list.
    if [[ -e ~/Fluidity_Server/listOfServerRoutes.sh ]]; then
 
@@ -6908,20 +7031,32 @@ addServerRoute () {
 # script ~/Fluidity_Server/listOfServerRoutes.sh.
 removeServerRoute () {
    
-   # Safety check 1: Number of arguments should be no less than 6.
+   # Safety check 1: Check whether Fluidity_Server folder is present 
+   # (functionality contained within mountFluidityServerFolder) and 
+   # decrypted.
+   if [ -z "$(df -T | grep -E 'Fluidity_Server ecryptfs')" ] ; then 
+
+      # Fluidity_Server folder found encrpyted. Use 
+      # mountFluidityServerFolder to decrypt it.
+      # Invoke mountFluidityServerFolder
+      mountFluidityServerFolder
+      
+   fi
+   
+   # Safety check 2: Number of arguments should be no less than 6.
    if [ "$#" -ne 6 ]; then
       echo "Illegal number of parameters"
       return
    fi
    
-   # Safety check 2: Force a specific command syntax.
+   # Safety check 3: Force a specific command syntax.
    if ! [[ $1 == "ip" && $2 == "route" && $3 == "add" && $5 == "via" ]]; then
       echo "Command should be in the form of:" 
       echo "ip route add x.y.z.w/mask via x.y.z.w"
       return
    fi
    
-   # Safety check 3: Cancel execution if the route is absent from the 
+   # Safety check 4: Cancel execution if the route is absent from the 
    # server list.
    if ! cat ~/Fluidity_Server/listOfServerRoutes.sh | grep "sudo $1 $2 $3 $4 $5 $6"; then
       echo "Route does not exist in serverRoutes.sh"
@@ -6966,26 +7101,38 @@ removeServerRoute () {
 # ~/Fluidity_Server/client.[SSH_ID]/connection.[SSH_ID].[SSL_ID]/listOfClientRoutes.[SSH_ID].[SSL_ID].sh.
 addClientRoute () {
    
-   # Safety check 1: Number of arguments should be no less than 8.
+   # Safety check 1: Check whether Fluidity_Server folder is present 
+   # (functionality contained within mountFluidityServerFolder) and 
+   # decrypted.
+   if [ -z "$(df -T | grep -E 'Fluidity_Server ecryptfs')" ] ; then 
+
+      # Fluidity_Server folder found encrpyted. Use 
+      # mountFluidityServerFolder to decrypt it.
+      # Invoke mountFluidityServerFolder
+      mountFluidityServerFolder
+      
+   fi
+   
+   # Safety check 2: Number of arguments should be no less than 8.
    if [ "$#" -ne 8 ]; then
       echo "Illegal number of parameters"
       return
    fi
    
-   # Safety check 2: Force a specific command syntax.
+   # Safety check 3: Force a specific command syntax.
    if ! [[ $3 == "ip" && $4 == "route" && $5 == "add" && $7 == "via" ]]; then
       echo "Command should be in the form of:" 
       echo "client_id connection_id ip route add x.y.z.w/mask via x.y.z.w"
       return
    fi
    
-   # Safety check 3: Stop execution if this connection doesn't exist.
+   # Safety check 4: Stop execution if this connection doesn't exist.
    if [ ! -d ~/Fluidity_Server/client.$1/connection.$1.$2 ]; then
       echo "Fluidity Connection $1.$2 does not exist"
       return
    fi
    
-   # Safety check 4: Stop execution if this route is already in client
+   # Safety check 5: Stop execution if this route is already in client
    # list.
    if [[ -e ~/Fluidity_Server/client.$1/connection.$1.$2/listOfClientRoutes.$1.$2.sh ]]; then
 
@@ -7043,26 +7190,38 @@ addClientRoute () {
 # ~/Fluidity_Server/client.[SSH_ID]/connection.[SSH_ID].[SSL_ID]/listOfClientRoutes.[SSH_ID].[SSL_ID].sh.
 removeClientRoute () {
    
-   # Safety check 1: Number of arguments should be no less than 8.
+   # Safety check 1: Check whether Fluidity_Server folder is present 
+   # (functionality contained within mountFluidityServerFolder) and 
+   # decrypted.
+   if [ -z "$(df -T | grep -E 'Fluidity_Server ecryptfs')" ] ; then 
+
+      # Fluidity_Server folder found encrpyted. Use 
+      # mountFluidityServerFolder to decrypt it.
+      # Invoke mountFluidityServerFolder
+      mountFluidityServerFolder
+      
+   fi
+   
+   # Safety check 2: Number of arguments should be no less than 8.
    if [ "$#" -ne 8 ]; then
       echo "Illegal number of parameters"
       return
    fi
    
-   # Safety check 2: Force a specific command syntax.
+   # Safety check 3: Force a specific command syntax.
    if ! [[ $3 == "ip" && $4 == "route" && $5 == "add" && $7 == "via" ]]; then
       echo "Command should be in the form of:" 
       echo "client_id connection_id ip route add x.y.z.w/mask via x.y.z.w"
       return
    fi
    
-   # Safety check 3: Stop execution if this connection doesn't exist.
+   # Safety check 4: Stop execution if this connection doesn't exist.
    if [ ! -d ~/Fluidity_Server/client.$1/connection.$1.$2 ]; then
       echo "Fluidity Connection $1.$2 does not exist"
       return
    fi
    
-   # Safety check 4: Stop execution if this route is absent from client
+   # Safety check 5: Stop execution if this route is absent from client
    # list.
    if ! cat ~/Fluidity_Server/client.$1/connection.$1.$2/listOfClientRoutes.$1.$2.sh | grep "sudo $3 $4 $5 $6 $7 $8"; then
       echo "Route does not exist in clientRoutes.$1.$2.sh"
