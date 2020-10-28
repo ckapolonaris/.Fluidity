@@ -698,64 +698,104 @@ EOF
 
 fluidityServerConfiguration () {
 
-   # Enable IP forwarding on Server
-   sudo sysctl -w net.ipv4.ip_forward=1
-
-   # Check for Internet availability
-   if [ "`ping -c 3 www.google.com`" ]; then
-      # Update the system
-      sudo apt-get update
-      # Verify and if not present install "SOCAT"
-      if ! [ -x "$(command -v socat)" ]; then
-         sudo apt-get -y install socat
+   # Perform a system update.
+   if ! sudo apt-get update; then
+      echo -e 'System update failed.'\
+       '\nPlease check your internet connection to proceed with the'\
+       '\n.Fluidity installation.'\
+       '\nCanceling the installation procedures.'
+       return
+   fi
+   # Verify and if not present install "SOCAT"
+   if ! [ -x "$(command -v socat)" ]; then
+      if ! sudo apt-get -y install socat; then
+         echo -e 'SOCAT installation failed.'\
+          '\nPlease check your internet connection to proceed with the'\
+          '\n.Fluidity installation.'\
+          '\nCanceling the installation procedures.'
+          return
       fi
-      # Verify and if not present install "ECRYPTFS"
-      if ! [ -x "$(command -v ecryptfsd)" ]; then
-         sudo apt-get -y install ecryptfs-utils
+   fi
+   # Verify and if not present install "ECRYPTFS"
+   if ! [ -x "$(command -v ecryptfsd)" ]; then
+     if ! sudo apt-get -y install ecryptfs-utils; then
+        echo -e 'EcryptFS installation failed.'\
+         '\nPlease check your internet connection to proceed with the'\
+         '\n.Fluidity installation.'\
+         '\nCanceling the installation procedures.'
+        return
       fi
-      # Verify and if not present install  "EXPECT"
-      if ! [ -x "$(command -v expect)" ]; then
-         sudo apt-get -y install expect
+   fi
+   # Verify and if not present install  "EXPECT"
+   if ! [ -x "$(command -v expect)" ]; then
+      if ! sudo apt-get -y install expect; then
+         echo -e 'Expect installation failed.'\
+          '\nPlease check your internet connection to proceed with the'\
+          '\n.Fluidity installation.'\
+          '\nCanceling the installation procedures.'
+         return
       fi
-      # Verify and if not present install "LSOF"
-      if ! [ -x "$(command -v lsof)" ]; then
-         sudo apt-get -y install lsof
+   fi
+   # Verify and if not present install "LSOF"
+   if ! [ -x "$(command -v lsof)" ]; then
+      if ! sudo apt-get -y install lsof; then
+         echo -e 'LSOF installation failed.'\
+          '\nPlease check your internet connection to proceed with the'\
+          '\n.Fluidity installation.'\
+          '\nCanceling the installation procedures.'
+         return
       fi
-      # Verify and if not present install "NMAP"
-      if ! [ -x "$(command -v nmap)" ]; then
-         sudo apt-get -y install nmap
+   fi
+   # Verify and if not present install "NMAP"
+   if ! [ -x "$(command -v nmap)" ]; then
+      if ! sudo apt-get -y install nmap; then
+         echo -e 'nmap installation failed.'\
+          '\nPlease check your internet connection to proceed with the'\
+          '\n.Fluidity installation.'\
+          '\nCanceling the installation procedures.'
+         return
       fi
-      # Verify and if not present install "SSHPASS"
-      if ! [ -x "$(command -v sshpass)" ]; then
-         sudo apt-get -y install sshpass
+   fi
+   # Verify and if not present install "SSHPASS"
+   if ! [ -x "$(command -v sshpass)" ]; then
+      if ! sudo apt-get -y install sshpass; then
+         echo -e 'sshpass installation failed.'\
+          '\nPlease check your internet connection to proceed with the'\
+          '\n.Fluidity installation.'\
+          '\nCanceling the installation procedures.'
+         return
       fi
-      # Verify and if not present install "UFW", 
-      # also perform the initial Firewall configuration.
-      if ! [ -x "$(command -v ufw)" ]; then
-         sudo apt-get -y install ufw
-         
-         # Basic server firewall configuration
-         
-         sudo systemctl enable ufw
-         
-         # Allow all the outgoing traffic
-         sudo ufw default allow outgoing
-         # Deny all the incoming traffic
-         sudo ufw default deny incoming
-         # Allow traffic to be forwarded through UFW
-         sudo ufw default allow routed
-         # Allow SSH connections
-         sudo ufw allow ssh
+   fi
+   # Verify and if not present install "UFW", 
+   # also perform the initial Firewall configuration.
+   if ! [ -x "$(command -v ufw)" ]; then
+      if ! sudo apt-get -y install ufw; then
+         echo -e 'UFW installation failed.'\
+          '\nPlease check your internet connection to proceed with the'\
+          '\n.Fluidity installation.'\
+          '\nCanceling the installation procedures.'
+         return
       fi
       
-      # Invoke giveAnEntropyBoost
-      giveAnEntropyBoost
-   # Error handling case:
-   # Display a no internet access message.
-   else
-      echo -e 'Warning. No Internet access.' \
-      '\nMain utilities installation cannot proceed without internet access.'
+      # Basic server firewall configuration
+      
+      sudo systemctl enable ufw
+      
+      # Allow all the outgoing traffic
+      sudo ufw default allow outgoing
+      # Deny all the incoming traffic
+      sudo ufw default deny incoming
+      # Allow traffic to be forwarded through UFW
+      sudo ufw default allow routed
+      # Allow SSH connections
+      sudo ufw allow ssh
    fi
+   
+   # Invoke giveAnEntropyBoost
+   giveAnEntropyBoost
+   
+   # Enable IP forwarding on Server
+   sudo sysctl -w net.ipv4.ip_forward=1
   
 }
 
@@ -899,54 +939,74 @@ serverFolderBackboneCreation () {
 
 fluidityClientConfiguration () {
    
-   # Check for Internet availability
-   if [ "`ping -c 3 www.google.com`" ]; then
-      # Update the system
-      sudo apt-get update
-      # Verify and if not present install "SOCAT"
-      if ! [ -x "$(command -v socat)" ]; then
-         sudo apt-get -y install socat
+   # Perform a system update.
+   if ! sudo apt-get update; then
+      echo -e 'System update failed.'\
+       '\nPlease check your internet connection to proceed with the'\
+       '\n.Fluidity installation.'\
+       '\nCanceling the installation procedures.'
+       return
+   fi
+   # Verify and if not present install "SOCAT"
+   if ! [ -x "$(command -v socat)" ]; then
+      if ! sudo apt-get -y install socat; then
+         echo -e 'SOCAT installation failed.'\
+          '\nPlease check your internet connection to proceed with the'\
+          '\n.Fluidity installation.'\
+          '\nCanceling the installation procedures.'
+          return
       fi
-      # Verify and if not present install "ECRYPTFS"
-      if ! [ -x "$(command -v ecryptfsd)" ]; then
-         sudo apt-get -y install ecryptfs-utils
+   fi
+   # Verify and if not present install "ECRYPTFS"
+   if ! [ -x "$(command -v ecryptfsd)" ]; then
+     if ! sudo apt-get -y install ecryptfs-utils; then
+        echo -e 'EcryptFS installation failed.'\
+         '\nPlease check your internet connection to proceed with the'\
+         '\n.Fluidity installation.'\
+         '\nCanceling the installation procedures.'
+        return
       fi
-      # Verify and if not present install "EXPECT"
-      if ! [ -x "$(command -v expect)" ]; then
-         sudo apt-get -y install expect
+   fi
+   # Verify and if not present install  "EXPECT"
+   if ! [ -x "$(command -v expect)" ]; then
+      if ! sudo apt-get -y install expect; then
+         echo -e 'Expect installation failed.'\
+          '\nPlease check your internet connection to proceed with the'\
+          '\n.Fluidity installation.'\
+          '\nCanceling the installation procedures.'
+         return
       fi
-      # Verify and if not present install "LSOF"
-      if ! [ -x "$(command -v lsof)" ]; then
-         sudo apt-get -y install lsof
+   fi
+   # Verify and if not present install "LSOF"
+   if ! [ -x "$(command -v lsof)" ]; then
+      if ! sudo apt-get -y install lsof; then
+         echo -e 'LSOF installation failed.'\
+          '\nPlease check your internet connection to proceed with the'\
+          '\n.Fluidity installation.'\
+          '\nCanceling the installation procedures.'
+         return
       fi
-      # Verify and if not present install "UFW", 
-      # also perform the initial Firewall configuration.
-      if ! [ -x "$(command -v ufw)" ]; then
-         sudo apt-get -y install ufw
+   fi
+   # Verify and if not present install "UFW", 
+   # also perform the initial Firewall configuration.
+   if ! [ -x "$(command -v ufw)" ]; then
+      if ! sudo apt-get -y install ufw; then
+         echo -e 'UFW installation failed.'\
+          '\nPlease check your internet connection to proceed with the'\
+          '\n.Fluidity installation.'\
+          '\nCanceling the installation procedures.'
+         return
+      fi
+      
          # Activate ufw
          sudo systemctl enable ufw
          sudo systemctl start ufw
-      fi
+   fi
       
       # Invoke giveAnEntropyBoost
       giveAnEntropyBoost
-      
-      # Modify sshd_config to implement the following policies. 
-      
-      # Set the maximum number of concurrent sessions to 2.
-      echo "sudo sed -i '35s/.*/$(echo \#MaxSessions 2)/' /etc/ssh/sshd_config" | bash -
-      
-   # Error handling case:
-   # Display a no internet access message.
-   else
-      echo -e 'Warning. No Internet access.' \
-      '\nProceeding with the installation requires an Internet connection.'
-   fi
    
    mkdir ~/Fluidity_Client
-   
-   # Restart ssh for the changes to take effect.
-   sudo service ssh restart
    
 }
 
@@ -1529,44 +1589,107 @@ done
  
    if [[ ! -e ~/Fluidity_Server/Generated_Scripts/genSCRIPT_fluidityRemoteClientConfiguration.sh ]]; then
    
-      echo -e \
-        'mkdir -p ~/Fluidity_Client'\
-      '\nsudo apt-get update'\
-      '\n'\
-      '\nif ! [ -x "$(command -v socat)" ]; then'\
-      '\n   sudo apt-get -y install socat'\
-      '\nfi'\
-      '\nif ! [ -x "$(command -v ecryptfsd)" ]; then'\
-      '\n   sudo apt-get -y install ecryptfs-utils'\
-      '\nfi'\
-      '\n'\
-      '\nif ! [ -x "$(command -v expect)" ]; then'\
-      '\n   sudo apt-get -y install expect'\
-      '\nfi'\
-      '\n'\
-      '\nif ! [ -x "$(command -v lsof)" ]; then'\
-      '\n   sudo apt-get -y install lsof'\
-      '\nfi'\
-      '\n'\
-      '\nif ! [ -x "$(command -v haveged)" ] && ! [ -x "$(command -v rngd)" ]; then'\
-      '\n   case $1 in'\
-      '\n      [1]* ) echo "Installing Haveged"'\
-      '\n         sudo apt-get -y install haveged'\
-      '\n         # Start the "HAVEGED" service'\
-      '\n         sudo systemctl start haveged'\
-      '\n      ;;'\
-      '\n      [2]* ) echo "Installing rng-tools"'\
-      '\n         sudo apt-get -y install rng-tools'\
-      '\n         # Start the "rng-tools" service'\
-      '\n         sudo systemctl start rng-tools'\
-      '\n      ;;'\
-      '\n   esac'\
-      '\nelif [ -x "$(command -v haveged)" ]; then'\
-      '\n   echo "Haveged is already installed"'\
-      '\nelif [ -x "$(command -v rngd)" ]; then'\
-      '\n   echo "rng-tools are already installed"'\
-      '\nfi' > \
-      ~/Fluidity_Server/Generated_Scripts/genSCRIPT_fluidityRemoteClientConfiguration.sh
+   cat <<- END_CAT > ~/Fluidity_Server/Generated_Scripts/genSCRIPT_fluidityRemoteClientConfiguration.sh
+   
+      # Perform a system update.
+      if ! sudo apt-get update; then
+         echo -e 'System update failed.'\\
+          '\nPlease check your internet connection to proceed with the'\\
+          '\n.Fluidity installation.'\\
+          '\nCanceling the installation procedures.'
+         echo "genSCRIPT_fluidityRemoteClientConfiguration.sh failed"
+         return
+      fi
+      # Verify and if not present install "SOCAT"
+      if ! [ -x "$(command -v socat)" ]; then
+         if ! sudo apt-get -y install socat; then
+            echo -e 'SOCAT installation failed.'\\
+             '\nPlease check your internet connection to proceed with the'\\
+             '\n.Fluidity installation.'\\
+             '\nCanceling the installation procedures.'
+            echo "genSCRIPT_fluidityRemoteClientConfiguration.sh failed"
+            return
+         fi
+      fi
+      # Verify and if not present install "ECRYPTFS"
+      if ! [ -x "$(command -v ecryptfsd)" ]; then
+         if ! sudo apt-get -y install ecryptfs-utils; then
+            echo -e 'EcryptFS installation failed.'\\
+             '\nPlease check your internet connection to proceed with the'\\
+             '\n.Fluidity installation.'\\
+             '\nCanceling the installation procedures.'
+            echo "genSCRIPT_fluidityRemoteClientConfiguration.sh failed"
+            return
+         fi
+      fi
+      # Verify and if not present install  "EXPECT"
+      if ! [ -x "$(command -v expect)" ]; then
+         if ! sudo apt-get -y install expect; then
+            echo -e 'Expect installation failed.'\\
+             '\nPlease check your internet connection to proceed with the'\\
+             '\n.Fluidity installation.'\\
+             '\nCanceling the installation procedures.'
+            echo "genSCRIPT_fluidityRemoteClientConfiguration.sh failed"
+            return
+         fi
+      fi
+      # Verify and if not present install "LSOF"
+      if ! [ -x "$(command -v lsof)" ]; then
+         if ! sudo apt-get -y install lsof; then
+            echo -e 'LSOF installation failed.'\\
+             '\nPlease check your internet connection to proceed with the'\\
+             '\n.Fluidity installation.'\\
+             '\nCanceling the installation procedures.'
+            echo "genSCRIPT_fluidityRemoteClientConfiguration.sh failed"
+         return
+         fi
+      fi
+   
+      if ! [ -x "$(command -v haveged)" ] && ! [ -x "$(command -v rngd)" ]; then
+      
+         case $1 in
+          [1]* ) echo "Installing Haveged"
+            if ! sudo apt-get -y install haveged; then
+               echo -e 'Haveged installation failed.'\\
+                '\nPlease check your internet connection to proceed with the'\\
+                '\n.Fluidity installation.'\\
+                '\nCanceling the installation procedures.'
+               echo "genSCRIPT_fluidityRemoteClientConfiguration.sh failed"
+               return
+            fi
+          # Start the "HAVEGED" service
+          sudo systemctl start haveged
+          ;;
+          [2]* ) echo "Installing rng-tools"
+            if ! sudo apt-get -y install rng-tools; then
+               echo -e 'rng-tools installation failed.'\\
+                '\nPlease check your internet connection to proceed with the'\\
+                '\n.Fluidity installation.'\\
+                '\nCanceling the installation procedures.'
+               echo "genSCRIPT_fluidityRemoteClientConfiguration.sh failed"
+               return
+            fi
+            # Start the "rng-tools" service
+            sudo systemctl start rng-tools
+            ;;
+         esac
+         
+      elif [ -x "$(command -v haveged)" ]; then
+      
+         echo "Haveged is already installed"
+         sudo systemctl start haveged
+         sudo systemctl stop rng-tools
+         
+      elif [ -x "$(command -v rngd)" ]; then
+      
+        echo "rng-tools are already installed"
+        sudo systemctl start rng-tools
+        sudo systemctl stop haveged
+        
+      fi
+   
+END_CAT
+   
       chmod 700 ~/Fluidity_Server/Generated_Scripts/genSCRIPT_fluidityRemoteClientConfiguration.sh
       
    fi
@@ -1600,9 +1723,17 @@ done
    if [[ ! -e ~/Fluidity_Server/Generated_Scripts/genSCRIPT_fluidityRemoteClientFirewallConfiguration.sh ]]; then
       
       cat <<- END_CAT > ~/Fluidity_Server/Generated_Scripts/genSCRIPT_fluidityRemoteClientFirewallConfiguration.sh
+            
          if ! [ -x "$(command -v ufw)" ]; then
          
-            sudo apt-get -y install ufw
+            if ! sudo apt-get -y install ufw; then
+               echo -e 'UFW installation failed.'\\
+                '\nPlease check your internet connection to proceed with the'\\
+                '\n.Fluidity installation.'\\
+                '\nCanceling the installation procedures.'
+                echo "genSCRIPT_fluidityRemoteClientFirewallConfiguration.sh failed"
+               return
+            fi
             
             sudo systemctl enable ufw
             sudo systemctl start ufw
@@ -1668,11 +1799,17 @@ END_CAT
    
    # heefhEKX
    # SSH remotely execute genSCRIPT_fluidityRemoteClientConfiguration.sh
-   ssh $2@$1 'bash -s' < ~/Fluidity_Server/Generated_Scripts/genSCRIPT_fluidityRemoteClientConfiguration.sh $entropy_source_user_choice
+   if ssh $2@$1 'bash -s' < ~/Fluidity_Server/Generated_Scripts/genSCRIPT_fluidityRemoteClientConfiguration.sh $entropy_source_user_choice | grep "genSCRIPT_fluidityRemoteClientConfiguration.sh failed"; then
+      echo "Remote configuration failed. Try executing fluidityClientConfiguration directly on client to proceed with the installation"
+      return
+   fi
    
    # heefhEKX
    # SSH remotely execute genSCRIPT_fluidityRemoteClientFirewallConfiguration.sh
-   ssh $2@$1 'bash -s' < ~/Fluidity_Server/Generated_Scripts/genSCRIPT_fluidityRemoteClientFirewallConfiguration.sh
+   if ssh $2@$1 'bash -s' < ~/Fluidity_Server/Generated_Scripts/genSCRIPT_fluidityRemoteClientFirewallConfiguration.sh | grep "genSCRIPT_fluidityRemoteClientFirewallConfiguration.sh failed"; then
+      echo "Remote configuration failed. Try executing fluidityClientConfiguration directly on client to proceed with the installation"
+      return
+   fi
 
    # heefhEKX
    # SSH remotely execute genSCRIPT_fluidityRemoteClientSSHConfiguration
@@ -6478,22 +6615,42 @@ giveAnEntropyBoost () {
          '\n2. for rng-tools'\
          && read -p '_' choice
          # CASE 1: For choice=1 install Haveged
+         
          case $choice in
          [1]* ) echo "Installing Haveged"
-            sudo apt-get -y install haveged
+            if ! sudo apt-get -y install haveged; then
+               echo -e 'Haveged installation failed.'\
+                '\nPlease check your internet connection to proceed with the'\
+                '\n.Fluidity installation.'\
+                '\nCanceling the installation procedures.'
+               return
+            fi
+            
             # Start the "HAVEGED" service
             sudo systemctl start haveged
+            
          break;;
+         
          # CASE 2: For choice=2 install rng-tools
          [2]* ) echo "Installing rng-tools"
-            sudo apt-get -y install rng-tools
+            if ! sudo apt-get -y install rng-tools; then
+               echo -e 'rng-tools installation failed.'\
+                '\nPlease check your internet connection to proceed with the'\
+                '\n.Fluidity installation.'\
+                '\nCanceling the installation procedures.'
+               return
+            fi
+            
             # Start the "rng-tools" service
             sudo systemctl start rng-tools
+            
          break;;
+         
          # Error handling case:
          # Display the valid choices (1 or 2) and loop again.
          * ) echo "1 for Haveged, 2 for rng-tools";;
          esac
+         
       done
    
    elif [ -x "$(command -v haveged)" ]; then
