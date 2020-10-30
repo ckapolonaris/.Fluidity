@@ -113,6 +113,7 @@
 #		addFluidityClient +
 #		removeFluidityClient +
 # 	4.2 Private Functions
+#		removeLocalClientData
 #		fluidityRemoteClientConfiguration +
 #		remoteSeekAndEncryptDaemon + 4 functions
 # 5. Connection Management Functions
@@ -212,7 +213,7 @@
 #		addClientRoute +
 #		removeClientRoute + 4 functions
 
-# Counting 94 functions in total.
+# Counting 95 functions in total.
 
 # List of Quickfind tags:
 # 1.  Branching points that define the .Fluidity flavour to be used: kzjFgtUz
@@ -498,7 +499,10 @@ installFluidity () {
          echo -e "\nInstalling Fluidity"
          
          #Invoke fluidityServerConfiguration
-         fluidityServerConfiguration
+         if fluidityServerConfiguration | grep "fluidityServerConfiguration failed"; then
+            cat ~/fluidity_failure_cause.txt
+            return
+         fi
          
          #Invoke mainServerFolderCreation
          mainServerFolderCreation
@@ -563,7 +567,10 @@ reinstallFluidity () {
          rm -r ~/Fluidity_Server
          
          #Invoke fluidityServerConfiguration
-         fluidityServerConfiguration
+         if fluidityServerConfiguration | grep "fluidityServerConfiguration failed"; then
+            cat ~/fluidity_failure_cause.txt
+            return
+         fi
          
          #Invoke mainServerFolderCreation
          mainServerFolderCreation
@@ -699,11 +706,14 @@ EOF
 fluidityServerConfiguration () {
 
    # Perform a system update.
-   if ! sudo apt-get update; then
+   if ping -c 3 www.google.com; then
+      sudo apt-get update && apt-get upgrade
+   else
       echo -e 'System update failed.'\
        '\nPlease check your internet connection to proceed with the'\
        '\n.Fluidity installation.'\
-       '\nCanceling the installation procedures.'
+       '\nCanceling the installation procedures.' > fluidity_failure_cause.txt
+       echo "fluidityServerConfiguration failed"
        return
    fi
    # Verify and if not present install "SOCAT"
@@ -712,7 +722,8 @@ fluidityServerConfiguration () {
          echo -e 'SOCAT installation failed.'\
           '\nPlease check your internet connection to proceed with the'\
           '\n.Fluidity installation.'\
-          '\nCanceling the installation procedures.'
+          '\nCanceling the installation procedures.' > fluidity_failure_cause.txt
+          echo "fluidityServerConfiguration failed"
           return
       fi
    fi
@@ -722,7 +733,8 @@ fluidityServerConfiguration () {
         echo -e 'EcryptFS installation failed.'\
          '\nPlease check your internet connection to proceed with the'\
          '\n.Fluidity installation.'\
-         '\nCanceling the installation procedures.'
+         '\nCanceling the installation procedures.' > fluidity_failure_cause.txt
+         echo "fluidityServerConfiguration failed"
         return
       fi
    fi
@@ -732,7 +744,8 @@ fluidityServerConfiguration () {
          echo -e 'Expect installation failed.'\
           '\nPlease check your internet connection to proceed with the'\
           '\n.Fluidity installation.'\
-          '\nCanceling the installation procedures.'
+          '\nCanceling the installation procedures.' > fluidity_failure_cause.txt
+          echo "fluidityServerConfiguration failed"
          return
       fi
    fi
@@ -742,7 +755,8 @@ fluidityServerConfiguration () {
          echo -e 'LSOF installation failed.'\
           '\nPlease check your internet connection to proceed with the'\
           '\n.Fluidity installation.'\
-          '\nCanceling the installation procedures.'
+          '\nCanceling the installation procedures.' > fluidity_failure_cause.txt
+          echo "fluidityServerConfiguration failed"
          return
       fi
    fi
@@ -752,7 +766,8 @@ fluidityServerConfiguration () {
          echo -e 'nmap installation failed.'\
           '\nPlease check your internet connection to proceed with the'\
           '\n.Fluidity installation.'\
-          '\nCanceling the installation procedures.'
+          '\nCanceling the installation procedures.' > fluidity_failure_cause.txt
+          echo "fluidityServerConfiguration failed"
          return
       fi
    fi
@@ -762,7 +777,8 @@ fluidityServerConfiguration () {
          echo -e 'sshpass installation failed.'\
           '\nPlease check your internet connection to proceed with the'\
           '\n.Fluidity installation.'\
-          '\nCanceling the installation procedures.'
+          '\nCanceling the installation procedures.' > fluidity_failure_cause.txt
+          echo "fluidityServerConfiguration failed"
          return
       fi
    fi
@@ -773,7 +789,8 @@ fluidityServerConfiguration () {
          echo -e 'UFW installation failed.'\
           '\nPlease check your internet connection to proceed with the'\
           '\n.Fluidity installation.'\
-          '\nCanceling the installation procedures.'
+          '\nCanceling the installation procedures.' > fluidity_failure_cause.txt
+          echo "fluidityServerConfiguration failed"
          return
       fi
       
@@ -792,7 +809,9 @@ fluidityServerConfiguration () {
    fi
    
    # Invoke giveAnEntropyBoost
-   giveAnEntropyBoost
+   if giveAnEntropyBoost | grep "giveAnEntropyBoost failed"; then
+      echo "fluidityServerConfiguration failed"
+   fi
    
    # Enable IP forwarding on Server
    sudo sysctl -w net.ipv4.ip_forward=1
@@ -940,7 +959,9 @@ serverFolderBackboneCreation () {
 fluidityClientConfiguration () {
    
    # Perform a system update.
-   if ! sudo apt-get update; then
+   if ping -c 3 www.google.com; then
+      sudo apt-get update && apt-get upgrade
+   else
       echo -e 'System update failed.'\
        '\nPlease check your internet connection to proceed with the'\
        '\n.Fluidity installation.'\
@@ -1046,6 +1067,7 @@ fluidityClientConfiguration () {
 # 2. checkFluidityFilesystemIntegrity, no args
 # 3. fluidityRemoteClientConfiguration, with args ($3), ($5), ($2)
 # 4. remoteSeekAndEncryptDaemonInstallation ($3), ($5), ($1), ($2)
+# 5. removeLocalClientData ($1)
 
 # Calls the script: NONE
 
@@ -1202,10 +1224,35 @@ EOF
 '\nlocal client_username='$5\
    > ~/Fluidity_Server/client.$1/basic_client_info.txt
    
+   while true; do 
+    echo "Fluidity requires a high quality entropy source"\
+    && echo "Which utility do you prefer to choose?"\
+    && echo "1. for Haveged"\
+    && echo "2. for rng-tools"\
+    && read -p "_" entropy_source_user_choice  
+      case $entropy_source_user_choice in 
+         [1]* ) echo "Installing Haveged" 
+         break;; 
+         [2]* ) echo "Installing rng-tools"  
+         break;; 
+         * ) echo "1 for Haveged, 2 for rng-tools";; 
+      esac 
+   done 
+   
    # Invoke fluidityRemoteClientConfiguration to
    # install .Fluidity's essential programs and basic firewall
    # configuration to client machine.
-   fluidityRemoteClientConfiguration $3 $5 $2 $1
+   if fluidityRemoteClientConfiguration $3 $5 $2 $1 $entropy_source_user_choice | grep "fluidityRemoteClientConfiguration failed"; then
+      ssh $5@$3 'cat ~/fluidity_failure_cause.txt && rm ~/fluidity_failure_cause.txt'
+      # S99zBE5 
+      # Invoke removeLocalClientData
+      removeLocalClientData $1 &>/dev/null
+      # Display an operation success message.
+      echo "Data from failed installation attempt removed successfully."
+      return
+   else
+      ssh $5@$3 'cat ~/fluidity_installation_outcome.txt && rm ~/fluidity_installation_outcome.txt'
+   fi
    
    # Invoke remoteSeekAndEncryptDaemonInstallation to
    # install FLdaemon_SeekAndEncrypt.service.
@@ -1327,8 +1374,6 @@ removeFluidityClient () {
 '   \n'\
 '   # SECTION 2.3: Remove the main fluidity client folder.\n'\
 '   rm -r ~/Fluidity_Client\n'\
-'   # SECTION 2.3: Change client hostname to generic "blank"\n'\
-'   sudo hostnamectl set-hostname "blank"\n'\
 '   # SECTION 2.3: Remove the public SSH key pointing to Fluidity server\n'\
 '   # (it should contain only the connection to Fluidity server!)\n'\
 '   if [ -f ~/.ssh/known_hosts ]; then\n'\
@@ -1414,8 +1459,6 @@ removeFluidityClient () {
 '   \n'\
 '   # SECTION 2.3: Remove the main fluidity client folder.\n'\
 '   rm -r ~/Fluidity_Client\n'\
-'   # SECTION 2.3: Change client hostname to generic "blank"\n'\
-'   sudo hostnamectl set-hostname "blank"\n'\
 '   # SECTION 2.3: Remove the public SSH key pointing to Fluidity server\n'\
 '   # (it should contain only the connection to Fluidity server!)\n'\
 '   if [ -f ~/.ssh/known_hosts ]; then\n'\
@@ -1520,11 +1563,73 @@ removeFluidityClient () {
 # 4.2 Private Functions
 
 
+# Arguments: ($1)
+# $1: SSH Client ID.
+
+# Sourced Variables:
+# 1. ~/Fluidity_Server/client.$SSH_ID/basic_client_info.txt
+   # 1. $server_IP_address
+   # 2. $client_IP_address
+   # 3. $client_username
+   # 4. $random_client_port
+   
+# Intershell File Variables in use: NONE
+
+# Global Variables in use: NONE
+
+# Generates: NOTHING
+
+# Invokes Functions: NONE
+
+# Calls the script: NONE
+
+# Function Description: Remove a .Fluidity client from a failed 
+# .Fluidity installation.
+removeLocalClientData () {
+
+   # Source the variables:
+      # 1. $server_IP_address
+      # 2. $client_IP_address
+      # 3. $client_username
+      # 4. $random_client_port
+   source ~/Fluidity_Server/client.$1/basic_client_info.txt
+
+   # Remove client's identity.
+   ssh-add -d ~/.ssh/client.$1
+   
+   # Delete the client's SSH related data.
+   rm ~/.ssh/client.$1
+   rm ~/.ssh/client.$1.pub
+   
+   # Delete client information stored in .Fluidity Vault.
+   rm ~/Fluidity_Server/SSH_Vault/SSH_Keys/client.$1
+   rm ~/Fluidity_Server/SSH_Vault/SSH_Keys/client.$1.pub
+   
+   rm ~/Fluidity_Server/SSH_Vault/SSH_Passphrases/passphrase.$1.txt
+   
+   # Delete all the client data.
+   rm -r ~/Fluidity_Server/client.$1
+   
+   # Delete the remaining vault connections data.
+   rm -r ~/Fluidity_Server/SSL_Cert_Vault/client_con.$1.*
+   rm -r ~/Fluidity_Server/SSL_Cert_Vault/server_con.$1.*
+   
+   # Remove the former .Fluidity client from ~/.ssh/known_hosts.
+   ssh-keygen -R $client_IP_address
+   rm ~/.ssh/known_hosts.old
+   
+   # Update the .ssh/config by removing the specific client 
+   # information from it.
+   # Invoke removeFluidityClientConfigInfoFromSSHConfig
+   removeFluidityClientConfigInfoFromSSHConfig $1 $client_IP_address $random_client_port
+}
+
 # Arguments: 
 # $1: Client IP.
 # $2: Client Username.
 # $3: Server IP.
-# $4: SSH ID
+# $4: SSH ID.
+# $5: Entropy Source User Choice.
 
 # Sourced Variables: NONE
 
@@ -1562,43 +1667,27 @@ removeFluidityClient () {
             # c. Allow inbound SSH connections.
       
 fluidityRemoteClientConfiguration () {
- 
-
-local $entropy_source_user_choice
 
 local random_ssh_port=$(shuf -i 49152-65535 -n 1)
 
 # Add the random port number to basic_client_info.txt
 echo -e 'local random_client_port='$random_ssh_port >> \
  ~/Fluidity_Server/client.$4/basic_client_info.txt
-
-while true; do 
-   echo "Fluidity requires a high quality entropy source"\
-    && echo "Which utility do you prefer to choose?"\
-    && echo "1. for Haveged"\
-    && echo "2. for rng-tools"\
-    && read -p "_" entropy_source_user_choice  
-      case $entropy_source_user_choice in 
-         [1]* ) echo "Installing Haveged" 
-         break;; 
-         [2]* ) echo "Installing rng-tools"  
-         break;; 
-         * ) echo "1 for Haveged, 2 for rng-tools";; 
-      esac 
-done 
  
    if [[ ! -e ~/Fluidity_Server/Generated_Scripts/genSCRIPT_fluidityRemoteClientConfiguration.sh ]]; then
    
    cat <<- END_CAT > ~/Fluidity_Server/Generated_Scripts/genSCRIPT_fluidityRemoteClientConfiguration.sh
    
       # Perform a system update.
-      if ! sudo apt-get update; then
+      if ping -c 3 www.google.com; then
+         sudo apt-get update && apt-get upgrade
+      else
          echo -e 'System update failed.'\\
           '\nPlease check your internet connection to proceed with the'\\
           '\n.Fluidity installation.'\\
-          '\nCanceling the installation procedures.'
-         echo "genSCRIPT_fluidityRemoteClientConfiguration.sh failed"
-         return
+          '\nCanceling the installation procedures.' > fluidity_failure_cause.txt
+          echo "genSCRIPT_fluidityRemoteClientConfiguration.sh failed"
+          exit
       fi
       # Verify and if not present install "SOCAT"
       if ! [ -x "$(command -v socat)" ]; then
@@ -1606,20 +1695,20 @@ done
             echo -e 'SOCAT installation failed.'\\
              '\nPlease check your internet connection to proceed with the'\\
              '\n.Fluidity installation.'\\
-             '\nCanceling the installation procedures.'
-            echo "genSCRIPT_fluidityRemoteClientConfiguration.sh failed"
-            return
+             '\nCanceling the installation procedures.' > fluidity_failure_cause.txt
+             echo "genSCRIPT_fluidityRemoteClientConfiguration.sh failed"
+             exit
          fi
       fi
       # Verify and if not present install "ECRYPTFS"
       if ! [ -x "$(command -v ecryptfsd)" ]; then
-         if ! sudo apt-get -y install ecryptfs-utils; then
-            echo -e 'EcryptFS installation failed.'\\
-             '\nPlease check your internet connection to proceed with the'\\
-             '\n.Fluidity installation.'\\
-             '\nCanceling the installation procedures.'
+        if ! sudo apt-get -y install ecryptfs-utils; then
+           echo -e 'EcryptFS installation failed.'\\
+            '\nPlease check your internet connection to proceed with the'\\
+            '\n.Fluidity installation.'\\
+            '\nCanceling the installation procedures.' > fluidity_failure_cause.txt
             echo "genSCRIPT_fluidityRemoteClientConfiguration.sh failed"
-            return
+           exit
          fi
       fi
       # Verify and if not present install  "EXPECT"
@@ -1628,9 +1717,9 @@ done
             echo -e 'Expect installation failed.'\\
              '\nPlease check your internet connection to proceed with the'\\
              '\n.Fluidity installation.'\\
-             '\nCanceling the installation procedures.'
-            echo "genSCRIPT_fluidityRemoteClientConfiguration.sh failed"
-            return
+             '\nCanceling the installation procedures.' > fluidity_failure_cause.txt
+             echo "genSCRIPT_fluidityRemoteClientConfiguration.sh failed"
+            exit
          fi
       fi
       # Verify and if not present install "LSOF"
@@ -1639,9 +1728,9 @@ done
             echo -e 'LSOF installation failed.'\\
              '\nPlease check your internet connection to proceed with the'\\
              '\n.Fluidity installation.'\\
-             '\nCanceling the installation procedures.'
-            echo "genSCRIPT_fluidityRemoteClientConfiguration.sh failed"
-         return
+             '\nCanceling the installation procedures.' > fluidity_failure_cause.txt
+             echo "genSCRIPT_fluidityRemoteClientConfiguration.sh failed"
+            exit
          fi
       fi
    
@@ -1653,11 +1742,12 @@ done
                echo -e 'Haveged installation failed.'\\
                 '\nPlease check your internet connection to proceed with the'\\
                 '\n.Fluidity installation.'\\
-                '\nCanceling the installation procedures.'
+                '\nCanceling the installation procedures.' > fluidity_failure_cause.txt
                echo "genSCRIPT_fluidityRemoteClientConfiguration.sh failed"
-               return
+               exit
             fi
           # Start the "HAVEGED" service
+          echo "Activating Haveged" > fluidity_installation_outcome.txt
           sudo systemctl start haveged
           ;;
           [2]* ) echo "Installing rng-tools"
@@ -1665,24 +1755,25 @@ done
                echo -e 'rng-tools installation failed.'\\
                 '\nPlease check your internet connection to proceed with the'\\
                 '\n.Fluidity installation.'\\
-                '\nCanceling the installation procedures.'
+                '\nCanceling the installation procedures.' > fluidity_failure_cause.txt
                echo "genSCRIPT_fluidityRemoteClientConfiguration.sh failed"
-               return
+               exit
             fi
             # Start the "rng-tools" service
+            echo "Activating rng-tools" > fluidity_installation_outcome.txt
             sudo systemctl start rng-tools
             ;;
          esac
          
       elif [ -x "$(command -v haveged)" ]; then
       
-         echo "Haveged is already installed"
+         echo "Activating Haveged" > fluidity_installation_outcome.txt
          sudo systemctl start haveged
          sudo systemctl stop rng-tools
          
       elif [ -x "$(command -v rngd)" ]; then
       
-        echo "rng-tools are already installed"
+        echo "Activating rng-tools" > fluidity_installation_outcome.txt
         sudo systemctl start rng-tools
         sudo systemctl stop haveged
         
@@ -1725,14 +1816,13 @@ END_CAT
       cat <<- END_CAT > ~/Fluidity_Server/Generated_Scripts/genSCRIPT_fluidityRemoteClientFirewallConfiguration.sh
             
          if ! [ -x "$(command -v ufw)" ]; then
-         
             if ! sudo apt-get -y install ufw; then
                echo -e 'UFW installation failed.'\\
                 '\nPlease check your internet connection to proceed with the'\\
                 '\n.Fluidity installation.'\\
-                '\nCanceling the installation procedures.'
+                '\nCanceling the installation procedures.' > fluidity_failure_cause.txt
                 echo "genSCRIPT_fluidityRemoteClientFirewallConfiguration.sh failed"
-               return
+               exit
             fi
             
             sudo systemctl enable ufw
@@ -1786,21 +1876,24 @@ EOF
             sudo ufw status
             
          fi
+         
+         mkdir -p ~/Fluidity_Client
 END_CAT
 
       chmod 700 ~/Fluidity_Server/Generated_Scripts/genSCRIPT_fluidityRemoteClientFirewallConfiguration.sh
       
    else
       
-      echo "sed -i '22s/.*/$(echo sudo ufw allow from $3 to any port $random_ssh_port proto tcp comment "\""HFBCvIa7h $1"\"")/' ~/Fluidity_Server/Generated_Scripts/genSCRIPT_fluidityRemoteClientFirewallConfiguration.sh" | bash -
-      echo "sed -i '49s/.*/$(echo sudo ufw allow from $3 to any port $random_ssh_port proto tcp comment "\""HFBCvIa7h $1"\"")/' ~/Fluidity_Server/Generated_Scripts/genSCRIPT_fluidityRemoteClientFirewallConfiguration.sh" | bash -
+      echo "sed -i '30s/.*/$(echo sudo ufw allow from $3 to any port $random_ssh_port proto tcp comment "\""HFBCvIa7h $1"\"")/' ~/Fluidity_Server/Generated_Scripts/genSCRIPT_fluidityRemoteClientFirewallConfiguration.sh" | bash -
+      echo "sed -i '58s/.*/$(echo sudo ufw allow from $3 to any port $random_ssh_port proto tcp comment "\""HFBCvIa7h $1"\"")/' ~/Fluidity_Server/Generated_Scripts/genSCRIPT_fluidityRemoteClientFirewallConfiguration.sh" | bash -
       
    fi
    
    # heefhEKX
    # SSH remotely execute genSCRIPT_fluidityRemoteClientConfiguration.sh
-   if ssh $2@$1 'bash -s' < ~/Fluidity_Server/Generated_Scripts/genSCRIPT_fluidityRemoteClientConfiguration.sh $entropy_source_user_choice | grep "genSCRIPT_fluidityRemoteClientConfiguration.sh failed"; then
+   if ssh $2@$1 'bash -s' < ~/Fluidity_Server/Generated_Scripts/genSCRIPT_fluidityRemoteClientConfiguration.sh $5 | grep "genSCRIPT_fluidityRemoteClientConfiguration.sh failed"; then
       echo "Remote configuration failed. Try executing fluidityClientConfiguration directly on client to proceed with the installation"
+      echo "fluidityRemoteClientConfiguration failed"
       return
    fi
    
@@ -1808,6 +1901,7 @@ END_CAT
    # SSH remotely execute genSCRIPT_fluidityRemoteClientFirewallConfiguration.sh
    if ssh $2@$1 'bash -s' < ~/Fluidity_Server/Generated_Scripts/genSCRIPT_fluidityRemoteClientFirewallConfiguration.sh | grep "genSCRIPT_fluidityRemoteClientFirewallConfiguration.sh failed"; then
       echo "Remote configuration failed. Try executing fluidityClientConfiguration directly on client to proceed with the installation"
+      echo "fluidityRemoteClientConfiguration failed"
       return
    fi
 
@@ -6622,7 +6716,8 @@ giveAnEntropyBoost () {
                echo -e 'Haveged installation failed.'\
                 '\nPlease check your internet connection to proceed with the'\
                 '\n.Fluidity installation.'\
-                '\nCanceling the installation procedures.'
+                '\nCanceling the installation procedures.' > fluidity_failure_cause.txt
+                echo "giveAnEntropyBoost failed"
                return
             fi
             
@@ -6637,7 +6732,8 @@ giveAnEntropyBoost () {
                echo -e 'rng-tools installation failed.'\
                 '\nPlease check your internet connection to proceed with the'\
                 '\n.Fluidity installation.'\
-                '\nCanceling the installation procedures.'
+                '\nCanceling the installation procedures.' > fluidity_failure_cause.txt
+                echo "giveAnEntropyBoost failed"
                return
             fi
             
