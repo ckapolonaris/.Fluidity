@@ -499,10 +499,13 @@ installFluidity () {
          echo -e "\nInstalling Fluidity"
          
          #Invoke fluidityServerConfiguration
-         if fluidityServerConfiguration | grep "fluidityServerConfiguration failed"; then
+         fluidityServerConfiguration 2>&1 | tee ~/fluidityServerConfiguration.output
+         if cat ~/fluidityServerConfiguration.output | grep "fluidityServerConfiguration failed"; then
             cat ~/fluidity_failure_cause.txt
             return
          fi
+         
+         rm ~/fluidityServerConfiguration.output
          
          #Invoke mainServerFolderCreation
          mainServerFolderCreation
@@ -567,10 +570,13 @@ reinstallFluidity () {
          rm -r ~/Fluidity_Server
          
          #Invoke fluidityServerConfiguration
-         if fluidityServerConfiguration | grep "fluidityServerConfiguration failed"; then
+         fluidityServerConfiguration 2>&1 | tee ~/fluidityServerConfiguration.output
+         if cat ~/fluidityServerConfiguration.output | grep "fluidityServerConfiguration failed"; then
             cat ~/fluidity_failure_cause.txt
             return
          fi
+         
+         rm ~/fluidityServerConfiguration.output
          
          #Invoke mainServerFolderCreation
          mainServerFolderCreation
@@ -707,7 +713,7 @@ fluidityServerConfiguration () {
 
    # Perform a system update.
    if ping -c 3 www.google.com; then
-      sudo apt-get update && apt-get upgrade
+      sudo apt-get update && sudo apt-get upgrade
    else
       echo -e 'System update failed.'\
        '\nPlease check your internet connection to proceed with the'\
@@ -809,9 +815,12 @@ fluidityServerConfiguration () {
    fi
    
    # Invoke giveAnEntropyBoost
-   if giveAnEntropyBoost | grep "giveAnEntropyBoost failed"; then
+   giveAnEntropyBoost 2>&1 | tee ~/giveAnEntropyBoost.output
+   if cat ~/giveAnEntropyBoost.output | grep "giveAnEntropyBoost failed"; then
       echo "fluidityServerConfiguration failed"
    fi
+   
+   rm ~/giveAnEntropyBoost.output
    
    # Enable IP forwarding on Server
    sudo sysctl -w net.ipv4.ip_forward=1
@@ -960,7 +969,7 @@ fluidityClientConfiguration () {
    
    # Perform a system update.
    if ping -c 3 www.google.com; then
-      sudo apt-get update && apt-get upgrade
+      sudo apt-get update && sudo apt-get upgrade
    else
       echo -e 'System update failed.'\
        '\nPlease check your internet connection to proceed with the'\
@@ -1242,7 +1251,8 @@ EOF
    # Invoke fluidityRemoteClientConfiguration to
    # install .Fluidity's essential programs and basic firewall
    # configuration to client machine.
-   if fluidityRemoteClientConfiguration $3 $5 $2 $1 $entropy_source_user_choice | grep "fluidityRemoteClientConfiguration failed"; then
+   fluidityRemoteClientConfiguration $3 $5 $2 $1 $entropy_source_user_choice 2>&1 | tee ~/Fluidity_Server/fluidityRemoteClientConfiguration.output
+   if cat ~/Fluidity_Server/fluidityRemoteClientConfiguration.output | grep "fluidityRemoteClientConfiguration failed"; then
       ssh $5@$3 'cat ~/fluidity_failure_cause.txt && rm ~/fluidity_failure_cause.txt'
       # S99zBE5 
       # Invoke removeLocalClientData
@@ -1253,6 +1263,8 @@ EOF
    else
       ssh $5@$3 'cat ~/fluidity_installation_outcome.txt && rm ~/fluidity_installation_outcome.txt'
    fi
+   
+   rm ~/Fluidity_Server/fluidityRemoteClientConfiguration.output
    
    # Invoke remoteSeekAndEncryptDaemonInstallation to
    # install FLdaemon_SeekAndEncrypt.service.
@@ -1680,7 +1692,7 @@ echo -e 'local random_client_port='$random_ssh_port >> \
    
       # Perform a system update.
       if ping -c 3 www.google.com; then
-         sudo apt-get update && apt-get upgrade
+         sudo apt-get update && sudo apt-get upgrade
       else
          echo -e 'System update failed.'\\
           '\nPlease check your internet connection to proceed with the'\\
