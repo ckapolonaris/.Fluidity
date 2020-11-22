@@ -499,13 +499,10 @@ installFluidity () {
          echo -e "\nInstalling Fluidity"
          
          #Invoke fluidityServerConfiguration
-         fluidityServerConfiguration 2>&1 | tee ~/fluidityServerConfiguration.output
-         if cat ~/fluidityServerConfiguration.output | grep "fluidityServerConfiguration failed"; then
+         if fluidityServerConfiguration | tee /dev/stderr | grep "fluidityServerConfiguration failed"; then
             cat ~/fluidity_failure_cause.txt
             return
          fi
-         
-         rm ~/fluidityServerConfiguration.output
          
          #Invoke mainServerFolderCreation
          mainServerFolderCreation
@@ -570,13 +567,10 @@ reinstallFluidity () {
          rm -r ~/Fluidity_Server
          
          #Invoke fluidityServerConfiguration
-         fluidityServerConfiguration 2>&1 | tee ~/fluidityServerConfiguration.output
-         if cat ~/fluidityServerConfiguration.output | grep "fluidityServerConfiguration failed"; then
+         if fluidityServerConfiguration | tee /dev/stderr | grep "fluidityServerConfiguration failed"; then
             cat ~/fluidity_failure_cause.txt
             return
          fi
-         
-         rm ~/fluidityServerConfiguration.output
          
          #Invoke mainServerFolderCreation
          mainServerFolderCreation
@@ -712,7 +706,7 @@ EOF
 fluidityServerConfiguration () {
 
    # Perform a system update.
-   if ping -c 3 www.google.com; then
+   if ping -c 3 8.8.8.8; then
       sudo apt-get update && sudo apt-get upgrade
    else
       echo -e 'System update failed.'\
@@ -815,12 +809,9 @@ fluidityServerConfiguration () {
    fi
    
    # Invoke giveAnEntropyBoost
-   giveAnEntropyBoost 2>&1 | tee ~/giveAnEntropyBoost.output
-   if cat ~/giveAnEntropyBoost.output | grep "giveAnEntropyBoost failed"; then
+   if giveAnEntropyBoost | tee /dev/stderr | grep "giveAnEntropyBoost failed"; then
       echo "fluidityServerConfiguration failed"
    fi
-   
-   rm ~/giveAnEntropyBoost.output
    
    # Enable IP forwarding on Server
    sudo sysctl -w net.ipv4.ip_forward=1
@@ -968,7 +959,7 @@ serverFolderBackboneCreation () {
 fluidityClientConfiguration () {
    
    # Perform a system update.
-   if ping -c 3 www.google.com; then
+   if ping -c 3 8.8.8.8; then
       sudo apt-get update && sudo apt-get upgrade
    else
       echo -e 'System update failed.'\
@@ -1251,8 +1242,8 @@ EOF
    # Invoke fluidityRemoteClientConfiguration to
    # install .Fluidity's essential programs and basic firewall
    # configuration to client machine.
-   fluidityRemoteClientConfiguration $3 $5 $2 $1 $entropy_source_user_choice 2>&1 | tee ~/Fluidity_Server/fluidityRemoteClientConfiguration.output
-   if cat ~/Fluidity_Server/fluidityRemoteClientConfiguration.output | grep "fluidityRemoteClientConfiguration failed"; then
+   if fluidityRemoteClientConfiguration $3 $5 $2 $1 $entropy_source_user_choice | tee /dev/stderr \
+    | grep "fluidityRemoteClientConfiguration failed"; then
       ssh $5@$3 'cat ~/fluidity_failure_cause.txt && rm ~/fluidity_failure_cause.txt'
       # S99zBE5 
       # Invoke removeLocalClientData
@@ -1263,8 +1254,6 @@ EOF
    else
       ssh $5@$3 'cat ~/fluidity_installation_outcome.txt && rm ~/fluidity_installation_outcome.txt'
    fi
-   
-   rm ~/Fluidity_Server/fluidityRemoteClientConfiguration.output
    
    # Invoke remoteSeekAndEncryptDaemonInstallation to
    # install FLdaemon_SeekAndEncrypt.service.
@@ -1691,7 +1680,7 @@ echo -e 'local random_client_port='$random_ssh_port >> \
    cat <<- END_CAT > ~/Fluidity_Server/Generated_Scripts/genSCRIPT_fluidityRemoteClientConfiguration.sh
    
       # Perform a system update.
-      if ping -c 3 www.google.com; then
+      if ping -c 3 8.8.8.8; then
          sudo apt-get update && sudo apt-get upgrade
       else
          echo -e 'System update failed.'\\
@@ -1903,7 +1892,8 @@ END_CAT
    
    # heefhEKX
    # SSH remotely execute genSCRIPT_fluidityRemoteClientConfiguration.sh
-   if ssh $2@$1 'bash -s' < ~/Fluidity_Server/Generated_Scripts/genSCRIPT_fluidityRemoteClientConfiguration.sh $5 | grep "genSCRIPT_fluidityRemoteClientConfiguration.sh failed"; then
+   if ssh $2@$1 'bash -s' < ~/Fluidity_Server/Generated_Scripts/genSCRIPT_fluidityRemoteClientConfiguration.sh $5 \
+   | tee /dev/stderr | grep "genSCRIPT_fluidityRemoteClientConfiguration.sh failed"; then
       echo "Remote configuration failed. Try executing fluidityClientConfiguration directly on client to proceed with the installation"
       echo "fluidityRemoteClientConfiguration failed"
       return
@@ -1911,7 +1901,8 @@ END_CAT
    
    # heefhEKX
    # SSH remotely execute genSCRIPT_fluidityRemoteClientFirewallConfiguration.sh
-   if ssh $2@$1 'bash -s' < ~/Fluidity_Server/Generated_Scripts/genSCRIPT_fluidityRemoteClientFirewallConfiguration.sh | grep "genSCRIPT_fluidityRemoteClientFirewallConfiguration.sh failed"; then
+   if ssh $2@$1 'bash -s' < ~/Fluidity_Server/Generated_Scripts/genSCRIPT_fluidityRemoteClientFirewallConfiguration.sh \
+   | tee /dev/stderr | grep "genSCRIPT_fluidityRemoteClientFirewallConfiguration.sh failed"; then
       echo "Remote configuration failed. Try executing fluidityClientConfiguration directly on client to proceed with the installation"
       echo "fluidityRemoteClientConfiguration failed"
       return
@@ -2036,7 +2027,7 @@ remoteSeekAndEncryptDaemonInstallation () {
    
    # Based on both passwords, create the corrensponding hash.
    local client_hashed_key=$(echo $seal_1 \
-      | openssl enc -aes-128-cbc -a -salt -pass pass:$seal_2)
+      | openssl enc -aes-128-cbc -md sha512 -pbkdf2 -iter 100000 -a -salt -pass pass:$seal_2)
 
    # FLdaemon_SeekAndEncrypt.sh doesn't exist. Generate it and
    # store it in: ~/Fluidity_Server/Generated_Scripts
@@ -2111,7 +2102,7 @@ remoteSeekAndEncryptDaemonInstallation () {
       '\n               # Source the variables $seal_1 and $seal_2 contained in the do_not_encrypt token.'\
       '\n               source /home/'$2'/Fluidity_Client/connection.'$3'.$connection_number/tokenSlot/'$filename\
       '\n               # Derive $seal_1 from the hashed key embedded in seek_and_encrypt by using $seal_2.'\
-      '\n               result=$(echo '$client_hashed_key' |  openssl enc -aes-128-cbc -a -d -salt -pass pass:$seal_2)'\
+      '\n               result=$(echo '$client_hashed_key' |  openssl enc -aes-128-cbc -md sha512 -pbkdf2 -iter 100000 -a -d -salt -pass pass:$seal_2)'\
       '\n'\
       '\n               # In case $seal_1 contained in the do_not_encrypt token doesn'"'"'t much the derived result'\
       '\n               if [ "$seal_1" != "$result" ]; then'\
@@ -2203,7 +2194,7 @@ remoteSeekAndEncryptDaemonInstallation () {
       '\n               # Source the variables $seal_1 and $seal_2 contained in the do_not_encrypt token.'\
       '\n               source /home/'$2'/Fluidity_Client/connection.'$3'.$connection_number/tokenSlot/'$filename\
       '\n               # Derive $seal_1 from the hashed key embedded in seek_and_encrypt by using $seal_2.'\
-      '\n               result=$(echo '$client_hashed_key' |  openssl enc -aes-128-cbc -a -d -salt -pass pass:$seal_2)'\
+      '\n               result=$(echo '$client_hashed_key' |  openssl enc -aes-128-cbc -md sha512 -pbkdf2 -iter 100000 -a -d -salt -pass pass:$seal_2)'\
       '\n'\
       '\n               # In case $seal_1 contained in the do_not_encrypt token doesn'"'"'t much the derived result'\
       '\n               if [ "$seal_1" != "$result" ]; then'\
@@ -2987,7 +2978,7 @@ installSSLcertificates () {
    # ~/Fluidity_Server/client.[SSH_ID]/connection.[SSH_ID.SSL_ID]/
    # genSCRIPT_client.[SSH_ID.SSL_ID].sh
    echo ${c_password[$array_index]} | \
-   openssl enc -aes-128-cbc -a -salt -pass \
+   openssl enc -aes-128-cbc -md sha512 -pbkdf2 -iter 100000 -a -salt -pass \
    pass:${c_bogus_password[$array_index]} > hashed_clientpass_con.$1.txt
 
    # SECTION4: Self-signed client - server certificate creation.
@@ -3167,7 +3158,7 @@ reinstallSSLcerts () {
    # ~/Fluidity_Server/client.[SSH_ID]/connection.[SSH_ID.SSL_ID]/
    # genSCRIPT_client.[SSH_ID.SSL_ID].sh
    echo ${c_password[$array_index]} | \
-   openssl enc -aes-128-cbc -a -salt -pass \
+   openssl enc -aes-128-cbc -md sha512 -pbkdf2 -iter 100000 -a -salt -pass \
    pass:${c_bogus_password[$array_index]} > hashed_clientpass_con.$1.txt
 
    # SECTION 3: Self-signed client - server certificate creation
@@ -5179,19 +5170,19 @@ runPersistentSOCATClient () {
          echo "Inside the Loop and proceeding with runSOCATclient."
          echo "Ping delay is: $ping_delay"
          
+         # Do a FLdaemon_SeekAndEncrypt.service reset to restart its 
+         # timers. 
+         ssh $5@$4 'sudo systemctl restart FLdaemon_SeekAndEncrypt.service'
+         
          # S99zBE5
          # Invoke checkForConnectionFolderAndDecrypt:
          # Client communication has been established. Now see whether
          # the client folder is decrypted. If not, then decrypt it.
          checkForConnectionFolderAndDecrypt $1 $4 $5 &>/dev/null 
          
-         # Restart the FLdaemon_SeekAndEncrypt.service to reset its 
-         # timers. 
-         ssh $5@$4 'sudo systemctl restart FLdaemon_SeekAndEncrypt.service'
-         
          # The following section covers the possiblity of a
          # corrupted - incomplete SSL installation. 
-         # If such a case occurs an SSL substitution will be initiated.
+         # For a corrupted pair, an SSL substitution will be initiated.
          
          # Precautionary action 1: Verify that the SSL certificates
          # are properly installed and ready to be used. If any of the
@@ -5204,16 +5195,20 @@ runPersistentSOCATClient () {
          # corresponding folders.
          # Safety Check 4: Verify that .crt and .pem client - server
          # MD5 hashes match.
+         # Safety Check 4: Verify that .crt and .pem client - server
+         # SHA256 hashes match.
          
          # Invoke verifyThatTokenSlotFolderIsEmpty
          # Invoke verifyTheSSLCertificates
          # Invoke doAClientServerMD5EquivalencyCheck
-         # While any of the following conditions applies perform a SSL
+         # Invoke doAClientServerSHA256EquivalencyCheck
+         
+         # While any of the following conditions is true perform a SSL
          # substitution.
          while verifyThatTokenSlotFolderIsEmpty $1 $4 $5 | grep -e 'verifyThatTokenSlotFolderIsEmpty FAILED'\
           || verifyThatSSLCertificatesExist $1 $4 $5 | grep -e 'verifyThatSSLCertificatesExist FAILED'\
-           || doAClientServerMD5EquivalencyCheck $1 $4 $5 | grep -e 'doAClientServerMD5EquivalencyCheck FAILED'\
-            || doAClientServerSHA256EquivalencyCheck $1 $4 $5 | grep -e 'doAClientServerSHA256EquivalencyCheck FAILED'; do
+           || doAClientServerMD5EquivalencyCheck $1 $4 $5 | tee /dev/stderr | grep -e 'doAClientServerMD5EquivalencyCheck FAILED'\
+            || doAClientServerSHA256EquivalencyCheck $1 $4 $5 | tee /dev/stderr | grep -e 'doAClientServerSHA256EquivalencyCheck FAILED'; do
             
             if ! ping -c 4 $4; then
                # Connection to client lost. Break the loop.
@@ -5227,6 +5222,10 @@ runPersistentSOCATClient () {
             # An aforomentioned safety check failed. Initiate an SSL
             # substitution.
             inactiveLinkInternalSSLrenew $1
+            
+            # Do a FLdaemon_SeekAndEncrypt.service reset to restart its 
+			# timers. 
+			ssh $5@$4 'sudo systemctl restart FLdaemon_SeekAndEncrypt.service'
          
             # Invoke checkForConnectionFolderAndDecrypt:
             # Do a preemptive connection client folder decryption.
@@ -5459,7 +5458,7 @@ runSerialSOCATclient() {
    
       echo -e 'cd ~/Fluidity_Client/connection.$1'\
 '\n'\
-'\npass=$(echo $hashed_pass | openssl enc -aes-128-cbc -a -d -salt -pass pass:$6)'\
+'\npass=$(echo $hashed_pass | openssl enc -aes-128-cbc -md sha512 -pbkdf2 -iter 100000 -a -d -salt -pass pass:$6)'\
 '\nexpect << EOF'\
 '\nspawn socat openssl:$5:$3,verify=1,\\'\
 '\ncert=clientcon.$1.pem,\\'\
@@ -5544,7 +5543,7 @@ runTUNnelSOCATclient() {
    
       echo -e 'cd ~/Fluidity_Client/connection.$1'\
 '\n'\
-'\npass=$(echo $hashed_pass | openssl enc -aes-128-cbc -a -d -salt -pass pass:$6)'\
+'\npass=$(echo $hashed_pass | openssl enc -aes-128-cbc -md sha512 -pbkdf2 -iter 100000 -a -d -salt -pass pass:$6)'\
 '\nexpect << EOF'\
 '\nspawn sudo socat openssl:$5:$3,verify=1,\\'\
 '\ncert=clientcon.$1.pem,\\'\
@@ -5916,7 +5915,7 @@ doAClientServerMD5EquivalencyCheck () {
       cat <<- 'END_CAT' > ~/Fluidity_Server/client.$SSH_ID/connection.$1/genSCRIPT_retrieveClientPemMD5.sh
       cd ~/Fluidity_Client/connection.$1
 
-      pass=$(echo $hashed_pass | openssl enc -aes-128-cbc -a -d -salt -pass pass:$2)
+      pass=$(echo $hashed_pass | openssl enc -aes-128-cbc -md sha512 -pbkdf2 -iter 100000 -a -d -salt -pass pass:$2)
       expect_out=$(expect -c '
          spawn $env(SHELL)
          expect "\\$" {
@@ -6031,7 +6030,7 @@ doAClientServerSHA256EquivalencyCheck () {
       cat <<- 'END_CAT' > ~/Fluidity_Server/client.$SSH_ID/connection.$1/genSCRIPT_retrieveClientPemSHA256.sh
       cd ~/Fluidity_Client/connection.$1
 
-      pass=$(echo $hashed_pass | openssl enc -aes-128-cbc -a -d -salt -pass pass:$2)
+      pass=$(echo $hashed_pass | openssl enc -aes-128-cbc -md sha512 -pbkdf2 -iter 100000 -a -d -salt -pass pass:$2)
       expect_out=$(expect -c '
          spawn $env(SHELL)
          expect "\\$" {
