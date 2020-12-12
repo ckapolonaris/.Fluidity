@@ -170,8 +170,9 @@
 #					isItEncryptedOnClient +
 #					decryptClient +
 #					encryptClient +
+#					deleteTokenFromClient +
 #		6.2.4 SSL Certificates Verification Functions
-#			verifyThatTokenSlotFolderIsEmpty +
+#			verifyThatResetSSLisMissing +
 #			verifyThatSSLCertificatesExist +
 #			doAClientServerMD5EquivalencyCheck +
 #			doAClientServerSHA256EquivalencyCheck +
@@ -213,7 +214,7 @@
 #		addClientRoute +
 #		removeClientRoute + 4 functions
 
-# Counting 95 functions in total.
+# Counting 96 functions in total.
 
 # List of Quickfind tags:
 # 1.  Branching points that define the .Fluidity flavour to be used: kzjFgtUz
@@ -479,7 +480,9 @@ installFluidity () {
       sleep 4
       
       #Invoke reinstallFluidity
-      reinstallFluidity
+      if reinstallFluidity | tee /dev/stderr | grep "Fluidity installation cancelled"; then
+         return
+      fi
       
    fi
 
@@ -500,7 +503,6 @@ installFluidity () {
          
          #Invoke fluidityServerConfiguration
          if fluidityServerConfiguration | tee /dev/stderr | grep "fluidityServerConfiguration failed"; then
-            cat ~/fluidity_failure_cause.txt
             return
          fi
          
@@ -568,7 +570,6 @@ reinstallFluidity () {
          
          #Invoke fluidityServerConfiguration
          if fluidityServerConfiguration | tee /dev/stderr | grep "fluidityServerConfiguration failed"; then
-            cat ~/fluidity_failure_cause.txt
             return
          fi
          
@@ -636,7 +637,8 @@ ecryptfs_passthrough=n,\
 ecryptfs_enable_filename_crypto=y\
  ./Fluidity_Server ./Fluidity_Server
  expect {
-	 {\]: } {send "\n"}
+	 {\[**************\]: } {send "\n"}
+	 eof {send "\n"}
  }
  expect {
 	 "(yes/no)? :" {send "yes\n"}
@@ -702,117 +704,185 @@ EOF
          # c. Allow traffic through the firewall.
          # d. Allow inbound SSH connections on port 22.
    # 8. (haveged OR rng-tools)
-
 fluidityServerConfiguration () {
 
-   # Perform a system update.
-   if ping -c 3 8.8.8.8; then
-      sudo apt-get update && sudo apt-get upgrade
+   if [ -x "$(command -v socat)" ] && [ -x "$(command -v ecryptfsd)" ] && \
+    [ -x "$(command -v expect)" ] && [ -x "$(command -v lsof)" ] && \
+    [ -x "$(command -v nmap)" ] && [ -x "$(command -v sshpass)" ] && \
+    [ -x "$(command -v ufw)" ]; then
+    
+      echo "All packages are present in the system."
+      echo ".Fluidity is ready to be installed."
+    
    else
-      echo -e 'System update failed.'\
-       '\nPlease check your internet connection to proceed with the'\
-       '\n.Fluidity installation.'\
-       '\nCanceling the installation procedures.' > fluidity_failure_cause.txt
-       echo "fluidityServerConfiguration failed"
-       return
-   fi
-   # Verify and if not present install "SOCAT"
-   if ! [ -x "$(command -v socat)" ]; then
-      if ! sudo apt-get -y install socat; then
-         echo -e 'SOCAT installation failed.'\
+
+      # Perform a system update.
+      if ping -c 3 8.8.8.8; then
+         sudo apt-get update && sudo apt-get -y upgrade
+      else
+         echo -e 'System update failed.'\
           '\nPlease check your internet connection to proceed with the'\
           '\n.Fluidity installation.'\
-          '\nCanceling the installation procedures.' > fluidity_failure_cause.txt
+          '\nCanceling the installation procedures.'
           echo "fluidityServerConfiguration failed"
           return
       fi
-   fi
-   # Verify and if not present install "ECRYPTFS"
-   if ! [ -x "$(command -v ecryptfsd)" ]; then
-     if ! sudo apt-get -y install ecryptfs-utils; then
-        echo -e 'EcryptFS installation failed.'\
-         '\nPlease check your internet connection to proceed with the'\
-         '\n.Fluidity installation.'\
-         '\nCanceling the installation procedures.' > fluidity_failure_cause.txt
-         echo "fluidityServerConfiguration failed"
-        return
+      # Verify and if not present install "SOCAT"
+      if ! [ -x "$(command -v socat)" ]; then
+         if ! sudo apt-get -y install socat; then
+            echo -e 'SOCAT installation failed.'\
+             '\nPlease check your internet connection to proceed with the'\
+             '\n.Fluidity installation.'\
+             '\nCanceling the installation procedures.'
+             echo "fluidityServerConfiguration failed"
+             return
+         fi
       fi
-   fi
-   # Verify and if not present install  "EXPECT"
-   if ! [ -x "$(command -v expect)" ]; then
-      if ! sudo apt-get -y install expect; then
-         echo -e 'Expect installation failed.'\
-          '\nPlease check your internet connection to proceed with the'\
-          '\n.Fluidity installation.'\
-          '\nCanceling the installation procedures.' > fluidity_failure_cause.txt
-          echo "fluidityServerConfiguration failed"
-         return
-      fi
-   fi
-   # Verify and if not present install "LSOF"
-   if ! [ -x "$(command -v lsof)" ]; then
-      if ! sudo apt-get -y install lsof; then
-         echo -e 'LSOF installation failed.'\
-          '\nPlease check your internet connection to proceed with the'\
-          '\n.Fluidity installation.'\
-          '\nCanceling the installation procedures.' > fluidity_failure_cause.txt
-          echo "fluidityServerConfiguration failed"
-         return
-      fi
-   fi
-   # Verify and if not present install "NMAP"
-   if ! [ -x "$(command -v nmap)" ]; then
-      if ! sudo apt-get -y install nmap; then
-         echo -e 'nmap installation failed.'\
-          '\nPlease check your internet connection to proceed with the'\
-          '\n.Fluidity installation.'\
-          '\nCanceling the installation procedures.' > fluidity_failure_cause.txt
-          echo "fluidityServerConfiguration failed"
-         return
-      fi
-   fi
-   # Verify and if not present install "SSHPASS"
-   if ! [ -x "$(command -v sshpass)" ]; then
-      if ! sudo apt-get -y install sshpass; then
-         echo -e 'sshpass installation failed.'\
-          '\nPlease check your internet connection to proceed with the'\
-          '\n.Fluidity installation.'\
-          '\nCanceling the installation procedures.' > fluidity_failure_cause.txt
-          echo "fluidityServerConfiguration failed"
-         return
-      fi
-   fi
-   # Verify and if not present install "UFW", 
-   # also perform the initial Firewall configuration.
-   if ! [ -x "$(command -v ufw)" ]; then
-      if ! sudo apt-get -y install ufw; then
-         echo -e 'UFW installation failed.'\
-          '\nPlease check your internet connection to proceed with the'\
-          '\n.Fluidity installation.'\
-          '\nCanceling the installation procedures.' > fluidity_failure_cause.txt
-          echo "fluidityServerConfiguration failed"
-         return
+      # Verify and if not present install the 111.5 ecryptfs version
+      if ! [ -x "$(command -v ecryptfsd)" ]; then
+         if ping -c 3 8.8.8.8; then
+         
+            DEPS="gettext-base keyutils libassuan0 libgpg-error0 libc6 libkeyutils1 libpam-runtime 
+            libgpg-error0 libpam0g libgpgme11 libtspi1 cryptsetup cryptsetup lsof rsync libnss3"
+            sudo apt-get install $DEPS
+            
+            if lscpu | grep ARM; then
+            
+               wget http://snapshot.debian.org/archive/debian-debug/20200802T203936Z/pool/main/e/ecryptfs-utils/libecryptfs1-dbgsym_111-5_armhf.deb
+               wget http://snapshot.debian.org/archive/debian/20200802T204950Z/pool/main/e/ecryptfs-utils/libecryptfs1_111-5_armhf.deb
+               wget http://snapshot.debian.org/archive/debian/20200802T204950Z/pool/main/e/ecryptfs-utils/libecryptfs-dev_111-5_armhf.deb
+               wget http://snapshot.debian.org/archive/debian-debug/20200802T203936Z/pool/main/e/ecryptfs-utils/ecryptfs-utils-dbgsym_111-5_armhf.deb
+               wget http://snapshot.debian.org/archive/debian/20200802T204950Z/pool/main/e/ecryptfs-utils/ecryptfs-utils_111-5_armhf.deb
+            
+               sudo dpkg -i libecryptfs1_111-5_armhf.deb
+               sudo dpkg -i libecryptfs1-dbgsym_111-5_armhf.deb
+               sudo dpkg -i libecryptfs-dev_111-5_armhf.deb
+               sudo dpkg -i ecryptfs-utils_111-5_armhf.deb
+               sudo dpkg -i ecryptfs-utils-dbgsym_111-5_armhf.deb
+               
+            elif lscpu | grep AMD; then
+            
+               wget http://snapshot.debian.org/archive/debian-debug/20200802T203936Z/pool/main/e/ecryptfs-utils/libecryptfs1-dbgsym_111-5_amd64.deb
+               wget http://snapshot.debian.org/archive/debian/20200802T204950Z/pool/main/e/ecryptfs-utils/libecryptfs1_111-5_amd64.deb
+               wget http://snapshot.debian.org/archive/debian/20200802T204950Z/pool/main/e/ecryptfs-utils/libecryptfs-dev_111-5_amd64.deb
+               wget http://snapshot.debian.org/archive/debian-debug/20200802T203936Z/pool/main/e/ecryptfs-utils/ecryptfs-utils-dbgsym_111-5_amd64.deb
+               wget http://snapshot.debian.org/archive/debian/20200802T204950Z/pool/main/e/ecryptfs-utils/ecryptfs-utils_111-5_amd64.deb
+               
+               sudo dpkg -i libecryptfs1_111-5_amd64.deb
+               sudo dpkg -i libecryptfs1-dbgsym_111-5_amd64.deb
+               sudo dpkg -i libecryptfs-dev_111-5_amd64.deb
+               sudo dpkg -i ecryptfs-utils_111-5_amd64.deb
+               sudo dpkg -i ecryptfs-utils-dbgsym_111-5_amd64.deb
+               
+            elif lscpu | grep GenuineIntel; then
+            
+               wget http://snapshot.debian.org/archive/debian-debug/20200802T203936Z/pool/main/e/ecryptfs-utils/libecryptfs1-dbgsym_111-5_i386.deb
+               wget http://snapshot.debian.org/archive/debian/20200802T204950Z/pool/main/e/ecryptfs-utils/libecryptfs1_111-5_i386.deb
+               wget http://snapshot.debian.org/archive/debian/20200802T204950Z/pool/main/e/ecryptfs-utils/libecryptfs-dev_111-5_i386.deb
+               wget http://snapshot.debian.org/archive/debian-debug/20200802T203936Z/pool/main/e/ecryptfs-utils/ecryptfs-utils-dbgsym_111-5_i386.deb
+               wget http://snapshot.debian.org/archive/debian/20200802T204950Z/pool/main/e/ecryptfs-utils/ecryptfs-utils_111-5_i386.deb
+               
+               sudo dpkg -i libecryptfs1_111-5_i386.deb
+               sudo dpkg -i libecryptfs1-dbgsym_111-5_i386.deb
+               sudo dpkg -i libecryptfs-dev_111-5_i386.deb
+               sudo dpkg -i ecryptfs-utils_111-5_i386.deb
+               sudo dpkg -i ecryptfs-utils-dbgsym_111-5_i386.deb
+               
+            fi
+         else
+            echo -e 'EcryptFS installation failed.'\
+             '\nPlease check your internet connection to proceed with the'\
+             '\n.Fluidity installation.'\
+             '\nCanceling the installation procedures.'
+            return
+         fi
       fi
       
-      # Basic server firewall configuration
+      # Correct the dependencies and do some cleaning before proceeding
+      # to the next application.
+      sleep 10
+      sudo apt-get install --fix-broken --assume-yes
+      sleep 10
+      sudo apt --fix-broken install
+      sleep 10
       
-      sudo systemctl enable ufw
+      # Verify and if not present install  "EXPECT"
+      if ! [ -x "$(command -v expect)" ]; then
+         if ! sudo apt-get -y install expect; then
+            echo -e 'Expect installation failed.'\
+             '\nPlease check your internet connection to proceed with the'\
+             '\n.Fluidity installation.'\
+             '\nCanceling the installation procedures.'
+             echo "fluidityServerConfiguration failed"
+            return
+         fi
+      fi
+      # Verify and if not present install "LSOF"
+      if ! [ -x "$(command -v lsof)" ]; then
+         if ! sudo apt-get -y install lsof; then
+            echo -e 'LSOF installation failed.'\
+             '\nPlease check your internet connection to proceed with the'\
+             '\n.Fluidity installation.'\
+             '\nCanceling the installation procedures.'
+             echo "fluidityServerConfiguration failed"
+            return
+         fi
+      fi
+      # Verify and if not present install "NMAP"
+      if ! [ -x "$(command -v nmap)" ]; then
+         if ! sudo apt-get -y install nmap; then
+            echo -e 'nmap installation failed.'\
+             '\nPlease check your internet connection to proceed with the'\
+             '\n.Fluidity installation.'\
+             '\nCanceling the installation procedures.'
+             echo "fluidityServerConfiguration failed"
+            return
+         fi
+      fi
+      # Verify and if not present install "SSHPASS"
+      if ! [ -x "$(command -v sshpass)" ]; then
+         if ! sudo apt-get -y install sshpass; then
+            echo -e 'sshpass installation failed.'\
+             '\nPlease check your internet connection to proceed with the'\
+             '\n.Fluidity installation.'\
+             '\nCanceling the installation procedures.'
+             echo "fluidityServerConfiguration failed"
+            return
+         fi
+      fi
+      # Verify and if not present install "UFW", 
+      # also perform the initial Firewall configuration.
+      if ! [ -x "$(command -v ufw)" ]; then
+         if ! sudo apt-get -y install ufw; then
+            echo -e 'UFW installation failed.'\
+             '\nPlease check your internet connection to proceed with the'\
+             '\n.Fluidity installation.'\
+             '\nCanceling the installation procedures.'
+             echo "fluidityServerConfiguration failed"
+            return
+         fi
+      fi
       
-      # Allow all the outgoing traffic
-      sudo ufw default allow outgoing
-      # Deny all the incoming traffic
-      sudo ufw default deny incoming
-      # Allow traffic to be forwarded through UFW
-      sudo ufw default allow routed
-      # Allow SSH connections
-      sudo ufw allow ssh
    fi
    
+   # Basic server firewall configuration
+            
+   sudo systemctl enable ufw
+            
+   # Allow all the outgoing traffic
+   sudo ufw default allow outgoing
+   # Deny all the incoming traffic
+   sudo ufw default deny incoming
+   # Allow traffic to be forwarded through UFW
+   sudo ufw default allow routed
+   # Allow SSH connections
+   sudo ufw allow ssh
+         
    # Invoke giveAnEntropyBoost
    if giveAnEntropyBoost | tee /dev/stderr | grep "giveAnEntropyBoost failed"; then
       echo "fluidityServerConfiguration failed"
    fi
-   
+         
    # Enable IP forwarding on Server
    sudo sysctl -w net.ipv4.ip_forward=1
   
@@ -835,6 +905,10 @@ fluidityServerConfiguration () {
 # Function Description: Create and encrypt the .Fluidity_Server folder 
 # with ecryptfs-utils, by using a user defined encryption password.
 mainServerFolderCreation () {
+
+   # Erase the contents of sig-cache.txt from previous .Fluidity
+   # installation attempts.
+   sudo truncate -s 0 /root/.ecryptfs/sig-cache.txt
 
    local encr_pass
    
@@ -860,7 +934,8 @@ ecryptfs_passthrough=n,\
 ecryptfs_enable_filename_crypto=y\
  ./Fluidity_Server ./Fluidity_Server
  expect {
-	 {\]: } {send "\n"}
+	 {\[**************\]: } {send "\n"}
+	 eof {send "\n"}
  }
  expect {
 	 "(yes/no)? :" {send "yes\n"}
@@ -955,77 +1030,145 @@ serverFolderBackboneCreation () {
          # a. Allow outgoing traffic.
          # b. Deny incoming traffic.
          # c. Allow inbound SSH connections on port 22.
-
 fluidityClientConfiguration () {
    
-   # Perform a system update.
-   if ping -c 3 8.8.8.8; then
-      sudo apt-get update && sudo apt-get upgrade
+   if [ -x "$(command -v socat)" ] && [ -x "$(command -v ecryptfsd)" ] && \
+    [ -x "$(command -v expect)" ] && [ -x "$(command -v lsof)" ] && \
+    [ -x "$(command -v ufw)" ]; then
+    
+      echo "All packages are present in the system."
+      echo ".Fluidity is ready to be installed."
+    
    else
-      echo -e 'System update failed.'\
-       '\nPlease check your internet connection to proceed with the'\
-       '\n.Fluidity installation.'\
-       '\nCanceling the installation procedures.'
-       return
-   fi
-   # Verify and if not present install "SOCAT"
-   if ! [ -x "$(command -v socat)" ]; then
-      if ! sudo apt-get -y install socat; then
-         echo -e 'SOCAT installation failed.'\
+   
+      # Perform a system update.
+      if ping -c 3 8.8.8.8; then
+         sudo apt-get update && sudo apt-get -y upgrade
+      else
+         echo -e 'System update failed.'\
           '\nPlease check your internet connection to proceed with the'\
           '\n.Fluidity installation.'\
           '\nCanceling the installation procedures.'
           return
       fi
-   fi
-   # Verify and if not present install "ECRYPTFS"
-   if ! [ -x "$(command -v ecryptfsd)" ]; then
-     if ! sudo apt-get -y install ecryptfs-utils; then
-        echo -e 'EcryptFS installation failed.'\
-         '\nPlease check your internet connection to proceed with the'\
-         '\n.Fluidity installation.'\
-         '\nCanceling the installation procedures.'
-        return
+      # Verify and if not present install "SOCAT"
+      if ! [ -x "$(command -v socat)" ]; then
+         if ! sudo apt-get -y install socat; then
+            echo -e 'SOCAT installation failed.'\
+             '\nPlease check your internet connection to proceed with the'\
+             '\n.Fluidity installation.'\
+             '\nCanceling the installation procedures.'
+             return
+         fi
       fi
-   fi
-   # Verify and if not present install  "EXPECT"
-   if ! [ -x "$(command -v expect)" ]; then
-      if ! sudo apt-get -y install expect; then
-         echo -e 'Expect installation failed.'\
-          '\nPlease check your internet connection to proceed with the'\
-          '\n.Fluidity installation.'\
-          '\nCanceling the installation procedures.'
-         return
-      fi
-   fi
-   # Verify and if not present install "LSOF"
-   if ! [ -x "$(command -v lsof)" ]; then
-      if ! sudo apt-get -y install lsof; then
-         echo -e 'LSOF installation failed.'\
-          '\nPlease check your internet connection to proceed with the'\
-          '\n.Fluidity installation.'\
-          '\nCanceling the installation procedures.'
-         return
-      fi
-   fi
-   # Verify and if not present install "UFW", 
-   # also perform the initial Firewall configuration.
-   if ! [ -x "$(command -v ufw)" ]; then
-      if ! sudo apt-get -y install ufw; then
-         echo -e 'UFW installation failed.'\
-          '\nPlease check your internet connection to proceed with the'\
-          '\n.Fluidity installation.'\
-          '\nCanceling the installation procedures.'
-         return
+      # Verify and if not present install the 111.5 ecryptfs version
+      if ! [ -x "$(command -v ecryptfsd)" ]; then
+         if ping -c 3 8.8.8.8; then
+         
+            DEPS="gettext-base keyutils libassuan0 libgpg-error0 libc6 libkeyutils1 libpam-runtime 
+            libgpg-error0 libpam0g libgpgme11 libtspi1 cryptsetup cryptsetup lsof rsync libnss3"
+            sudo apt-get install $DEPS
+            
+            if lscpu | grep ARM; then
+            
+               wget http://snapshot.debian.org/archive/debian-debug/20200802T203936Z/pool/main/e/ecryptfs-utils/libecryptfs1-dbgsym_111-5_armhf.deb
+               wget http://snapshot.debian.org/archive/debian/20200802T204950Z/pool/main/e/ecryptfs-utils/libecryptfs1_111-5_armhf.deb
+               wget http://snapshot.debian.org/archive/debian/20200802T204950Z/pool/main/e/ecryptfs-utils/libecryptfs-dev_111-5_armhf.deb
+               wget http://snapshot.debian.org/archive/debian-debug/20200802T203936Z/pool/main/e/ecryptfs-utils/ecryptfs-utils-dbgsym_111-5_armhf.deb
+               wget http://snapshot.debian.org/archive/debian/20200802T204950Z/pool/main/e/ecryptfs-utils/ecryptfs-utils_111-5_armhf.deb
+            
+               sudo dpkg -i libecryptfs1_111-5_armhf.deb
+               sudo dpkg -i libecryptfs1-dbgsym_111-5_armhf.deb
+               sudo dpkg -i libecryptfs-dev_111-5_armhf.deb
+               sudo dpkg -i ecryptfs-utils_111-5_armhf.deb
+               sudo dpkg -i ecryptfs-utils-dbgsym_111-5_armhf.deb
+               
+            elif lscpu | grep AMD; then
+            
+               wget http://snapshot.debian.org/archive/debian-debug/20200802T203936Z/pool/main/e/ecryptfs-utils/libecryptfs1-dbgsym_111-5_amd64.deb
+               wget http://snapshot.debian.org/archive/debian/20200802T204950Z/pool/main/e/ecryptfs-utils/libecryptfs1_111-5_amd64.deb
+               wget http://snapshot.debian.org/archive/debian/20200802T204950Z/pool/main/e/ecryptfs-utils/libecryptfs-dev_111-5_amd64.deb
+               wget http://snapshot.debian.org/archive/debian-debug/20200802T203936Z/pool/main/e/ecryptfs-utils/ecryptfs-utils-dbgsym_111-5_amd64.deb
+               wget http://snapshot.debian.org/archive/debian/20200802T204950Z/pool/main/e/ecryptfs-utils/ecryptfs-utils_111-5_amd64.deb
+               
+               sudo dpkg -i libecryptfs1_111-5_amd64.deb
+               sudo dpkg -i libecryptfs1-dbgsym_111-5_amd64.deb
+               sudo dpkg -i libecryptfs-dev_111-5_amd64.deb
+               sudo dpkg -i ecryptfs-utils_111-5_amd64.deb
+               sudo dpkg -i ecryptfs-utils-dbgsym_111-5_amd64.deb
+               
+            elif lscpu | grep GenuineIntel; then
+            
+               wget http://snapshot.debian.org/archive/debian-debug/20200802T203936Z/pool/main/e/ecryptfs-utils/libecryptfs1-dbgsym_111-5_i386.deb
+               wget http://snapshot.debian.org/archive/debian/20200802T204950Z/pool/main/e/ecryptfs-utils/libecryptfs1_111-5_i386.deb
+               wget http://snapshot.debian.org/archive/debian/20200802T204950Z/pool/main/e/ecryptfs-utils/libecryptfs-dev_111-5_i386.deb
+               wget http://snapshot.debian.org/archive/debian-debug/20200802T203936Z/pool/main/e/ecryptfs-utils/ecryptfs-utils-dbgsym_111-5_i386.deb
+               wget http://snapshot.debian.org/archive/debian/20200802T204950Z/pool/main/e/ecryptfs-utils/ecryptfs-utils_111-5_i386.deb
+               
+               sudo dpkg -i libecryptfs1_111-5_i386.deb
+               sudo dpkg -i libecryptfs1-dbgsym_111-5_i386.deb
+               sudo dpkg -i libecryptfs-dev_111-5_i386.deb
+               sudo dpkg -i ecryptfs-utils_111-5_i386.deb
+               sudo dpkg -i ecryptfs-utils-dbgsym_111-5_i386.deb
+               
+            fi
+         else
+            echo -e 'EcryptFS installation failed.'\
+             '\nPlease check your internet connection to proceed with the'\
+             '\n.Fluidity installation.'\
+             '\nCanceling the installation procedures.'
+            return
+         fi
       fi
       
-         # Activate ufw
-         sudo systemctl enable ufw
-         sudo systemctl start ufw
+      # Correct the dependencies and do some cleaning before proceeding
+      # to the next application.
+      sleep 10
+      sudo apt-get install --fix-broken --assume-yes
+      sleep 10
+      sudo apt --fix-broken install
+      sleep 10
+      
+      # Verify and if not present install  "EXPECT"
+      if ! [ -x "$(command -v expect)" ]; then
+         if ! sudo apt-get -y install expect; then
+            echo -e 'Expect installation failed.'\
+             '\nPlease check your internet connection to proceed with the'\
+             '\n.Fluidity installation.'\
+             '\nCanceling the installation procedures.'
+            return
+         fi
+      fi
+      # Verify and if not present install "LSOF"
+      if ! [ -x "$(command -v lsof)" ]; then
+         if ! sudo apt-get -y install lsof; then
+            echo -e 'LSOF installation failed.'\
+             '\nPlease check your internet connection to proceed with the'\
+             '\n.Fluidity installation.'\
+             '\nCanceling the installation procedures.'
+            return
+         fi
+      fi
+      # Verify and if not present install "UFW", 
+      # also perform the initial Firewall configuration.
+      if ! [ -x "$(command -v ufw)" ]; then
+         if ! sudo apt-get -y install ufw; then
+            echo -e 'UFW installation failed.'\
+             '\nPlease check your internet connection to proceed with the'\
+             '\n.Fluidity installation.'\
+             '\nCanceling the installation procedures.'
+            return
+         fi
+         
+            # Activate ufw
+            sudo systemctl enable ufw
+            sudo systemctl start ufw
+      fi
+   
    fi
       
-      # Invoke giveAnEntropyBoost
-      giveAnEntropyBoost
+   # Invoke giveAnEntropyBoost
+   giveAnEntropyBoost
    
    mkdir ~/Fluidity_Client
    
@@ -1224,25 +1367,10 @@ EOF
 '\nlocal client_username='$5\
    > ~/Fluidity_Server/client.$1/basic_client_info.txt
    
-   while true; do 
-    echo "Fluidity requires a high quality entropy source"\
-    && echo "Which utility do you prefer to choose?"\
-    && echo "1. for Haveged"\
-    && echo "2. for rng-tools"\
-    && read -p "_" entropy_source_user_choice  
-      case $entropy_source_user_choice in 
-         [1]* ) echo "Installing Haveged" 
-         break;; 
-         [2]* ) echo "Installing rng-tools"  
-         break;; 
-         * ) echo "1 for Haveged, 2 for rng-tools";; 
-      esac 
-   done 
-   
    # Invoke fluidityRemoteClientConfiguration to
    # install .Fluidity's essential programs and basic firewall
    # configuration to client machine.
-   if fluidityRemoteClientConfiguration $3 $5 $2 $1 $entropy_source_user_choice | tee /dev/stderr \
+   if fluidityRemoteClientConfiguration $3 $5 $2 $1 | tee /dev/stderr \
     | grep "fluidityRemoteClientConfiguration failed"; then
       ssh $5@$3 'cat ~/fluidity_failure_cause.txt && rm ~/fluidity_failure_cause.txt'
       # S99zBE5 
@@ -1251,8 +1379,6 @@ EOF
       # Display an operation success message.
       echo "Data from failed installation attempt removed successfully."
       return
-   else
-      ssh $5@$3 'cat ~/fluidity_installation_outcome.txt && rm ~/fluidity_installation_outcome.txt'
    fi
    
    # Invoke remoteSeekAndEncryptDaemonInstallation to
@@ -1630,7 +1756,6 @@ removeLocalClientData () {
 # $2: Client Username.
 # $3: Server IP.
 # $4: SSH ID.
-# $5: Entropy Source User Choice.
 
 # Sourced Variables: NONE
 
@@ -1640,8 +1765,10 @@ removeLocalClientData () {
 
 # Generates:
 # 1. Bash script (.sh): genSCRIPT_fluidityRemoteClientConfiguration.sh
-# 2. Bash script (.sh): genSCRIPT_fluidityRemoteClientSSHConfiguration.sh
-# 3. Bash script (.sh): genSCRIPT_fluidityRemoteClientFirewallConfiguration.sh
+# 2. Bash script (.sh): genSCRIPT_remoteRNGTOOLSinstallation.sh 
+# 3. Bash script (.sh): genSCRIPT_remoteHAVEGEDinstallation.sh
+# 4. Bash script (.sh): genSCRIPT_fluidityRemoteClientSSHConfiguration.sh
+# 5. Bash script (.sh): genSCRIPT_fluidityRemoteClientFirewallConfiguration.sh
 
 # Invokes Functions: NONE
 
@@ -1666,7 +1793,6 @@ removeLocalClientData () {
             # a. Allow outgoing traffic.
             # b. Deny incoming traffic.
             # c. Allow inbound SSH connections.
-      
 fluidityRemoteClientConfiguration () {
 
 local random_ssh_port=$(shuf -i 49152-65535 -n 1)
@@ -1677,113 +1803,239 @@ echo -e 'local random_client_port='$random_ssh_port >> \
  
    if [[ ! -e ~/Fluidity_Server/Generated_Scripts/genSCRIPT_fluidityRemoteClientConfiguration.sh ]]; then
    
-   cat <<- END_CAT > ~/Fluidity_Server/Generated_Scripts/genSCRIPT_fluidityRemoteClientConfiguration.sh
+   cat <<- 'END_CAT' > ~/Fluidity_Server/Generated_Scripts/genSCRIPT_fluidityRemoteClientConfiguration.sh
    
-      # Perform a system update.
-      if ping -c 3 8.8.8.8; then
-         sudo apt-get update && sudo apt-get upgrade
+      if [ -x "$(command -v socat)" ] && [ -x "$(command -v ecryptfsd)" ] && \
+     [ -x "$(command -v expect)" ] && [ -x "$(command -v lsof)" ]; then
+    
+         echo "All packages are present in the remote system."
+         echo ".Fluidity is ready to be installed."
+    
       else
-         echo -e 'System update failed.'\\
-          '\nPlease check your internet connection to proceed with the'\\
-          '\n.Fluidity installation.'\\
-          '\nCanceling the installation procedures.' > fluidity_failure_cause.txt
-          echo "genSCRIPT_fluidityRemoteClientConfiguration.sh failed"
-          exit
-      fi
-      # Verify and if not present install "SOCAT"
-      if ! [ -x "$(command -v socat)" ]; then
-         if ! sudo apt-get -y install socat; then
-            echo -e 'SOCAT installation failed.'\\
-             '\nPlease check your internet connection to proceed with the'\\
-             '\n.Fluidity installation.'\\
-             '\nCanceling the installation procedures.' > fluidity_failure_cause.txt
-             echo "genSCRIPT_fluidityRemoteClientConfiguration.sh failed"
-             exit
-         fi
-      fi
-      # Verify and if not present install "ECRYPTFS"
-      if ! [ -x "$(command -v ecryptfsd)" ]; then
-        if ! sudo apt-get -y install ecryptfs-utils; then
-           echo -e 'EcryptFS installation failed.'\\
-            '\nPlease check your internet connection to proceed with the'\\
-            '\n.Fluidity installation.'\\
-            '\nCanceling the installation procedures.' > fluidity_failure_cause.txt
-            echo "genSCRIPT_fluidityRemoteClientConfiguration.sh failed"
-           exit
-         fi
-      fi
-      # Verify and if not present install  "EXPECT"
-      if ! [ -x "$(command -v expect)" ]; then
-         if ! sudo apt-get -y install expect; then
-            echo -e 'Expect installation failed.'\\
-             '\nPlease check your internet connection to proceed with the'\\
-             '\n.Fluidity installation.'\\
-             '\nCanceling the installation procedures.' > fluidity_failure_cause.txt
-             echo "genSCRIPT_fluidityRemoteClientConfiguration.sh failed"
-            exit
-         fi
-      fi
-      # Verify and if not present install "LSOF"
-      if ! [ -x "$(command -v lsof)" ]; then
-         if ! sudo apt-get -y install lsof; then
-            echo -e 'LSOF installation failed.'\\
-             '\nPlease check your internet connection to proceed with the'\\
-             '\n.Fluidity installation.'\\
-             '\nCanceling the installation procedures.' > fluidity_failure_cause.txt
-             echo "genSCRIPT_fluidityRemoteClientConfiguration.sh failed"
-            exit
-         fi
-      fi
    
-      if ! [ -x "$(command -v haveged)" ] && ! [ -x "$(command -v rngd)" ]; then
-      
-         case $1 in
-          [1]* ) echo "Installing Haveged"
-            if ! sudo apt-get -y install haveged; then
-               echo -e 'Haveged installation failed.'\\
-                '\nPlease check your internet connection to proceed with the'\\
-                '\n.Fluidity installation.'\\
-                '\nCanceling the installation procedures.' > fluidity_failure_cause.txt
+         # Perform a system update.
+         if ping -c 3 8.8.8.8; then
+            sudo apt-get update && sudo apt-get -y upgrade
+         else
+            echo -e 'System update failed.'\
+             '\nPlease check your internet connection to proceed with the'\
+             '\n.Fluidity installation.'\
+             '\nCanceling the installation procedures.'
+            echo "genSCRIPT_fluidityRemoteClientConfiguration.sh failed"
+             return
+         fi
+         # Verify and if not present install "SOCAT"
+         if ! [ -x "$(command -v socat)" ]; then
+            if ! sudo apt-get -y install socat; then
+               echo -e 'SOCAT installation failed.'\
+                '\nPlease check your internet connection to proceed with the'\
+                '\n.Fluidity installation.'\
+                '\nCanceling the installation procedures.'
                echo "genSCRIPT_fluidityRemoteClientConfiguration.sh failed"
-               exit
+                return
             fi
-          # Start the "HAVEGED" service
-          echo "Activating Haveged" > fluidity_installation_outcome.txt
-          sudo systemctl start haveged
-          ;;
-          [2]* ) echo "Installing rng-tools"
-            if ! sudo apt-get -y install rng-tools; then
-               echo -e 'rng-tools installation failed.'\\
-                '\nPlease check your internet connection to proceed with the'\\
-                '\n.Fluidity installation.'\\
-                '\nCanceling the installation procedures.' > fluidity_failure_cause.txt
-               echo "genSCRIPT_fluidityRemoteClientConfiguration.sh failed"
-               exit
+         fi
+         # Verify and if not present install the 111.5 ecryptfs version
+         if ! [ -x "$(command -v ecryptfsd)" ]; then
+            if ping -c 3 8.8.8.8; then
+            
+               DEPS="gettext-base keyutils libassuan0 libgpg-error0 libc6 libkeyutils1 libpam-runtime 
+               libgpg-error0 libpam0g libgpgme11 libtspi1 cryptsetup cryptsetup lsof rsync libnss3"
+               sudo apt-get install $DEPS
+               
+               if lscpu | grep ARM; then
+               
+                  wget http://snapshot.debian.org/archive/debian-debug/20200802T203936Z/pool/main/e/ecryptfs-utils/libecryptfs1-dbgsym_111-5_armhf.deb
+                  wget http://snapshot.debian.org/archive/debian/20200802T204950Z/pool/main/e/ecryptfs-utils/libecryptfs1_111-5_armhf.deb
+                  wget http://snapshot.debian.org/archive/debian/20200802T204950Z/pool/main/e/ecryptfs-utils/libecryptfs-dev_111-5_armhf.deb
+                  wget http://snapshot.debian.org/archive/debian-debug/20200802T203936Z/pool/main/e/ecryptfs-utils/ecryptfs-utils-dbgsym_111-5_armhf.deb
+                  wget http://snapshot.debian.org/archive/debian/20200802T204950Z/pool/main/e/ecryptfs-utils/ecryptfs-utils_111-5_armhf.deb
+               
+                  sudo dpkg -i libecryptfs1_111-5_armhf.deb
+                  sudo dpkg -i libecryptfs1-dbgsym_111-5_armhf.deb
+                  sudo dpkg -i libecryptfs-dev_111-5_armhf.deb
+                  sudo dpkg -i ecryptfs-utils_111-5_armhf.deb
+                  sudo dpkg -i ecryptfs-utils-dbgsym_111-5_armhf.deb
+                  
+               elif lscpu | grep AMD; then
+               
+                  wget http://snapshot.debian.org/archive/debian-debug/20200802T203936Z/pool/main/e/ecryptfs-utils/libecryptfs1-dbgsym_111-5_amd64.deb
+                  wget http://snapshot.debian.org/archive/debian/20200802T204950Z/pool/main/e/ecryptfs-utils/libecryptfs1_111-5_amd64.deb
+                  wget http://snapshot.debian.org/archive/debian/20200802T204950Z/pool/main/e/ecryptfs-utils/libecryptfs-dev_111-5_amd64.deb
+                  wget http://snapshot.debian.org/archive/debian-debug/20200802T203936Z/pool/main/e/ecryptfs-utils/ecryptfs-utils-dbgsym_111-5_amd64.deb
+                  wget http://snapshot.debian.org/archive/debian/20200802T204950Z/pool/main/e/ecryptfs-utils/ecryptfs-utils_111-5_amd64.deb
+                  
+                  sudo dpkg -i libecryptfs1_111-5_amd64.deb
+                  sudo dpkg -i libecryptfs1-dbgsym_111-5_amd64.deb
+                  sudo dpkg -i libecryptfs-dev_111-5_amd64.deb
+                  sudo dpkg -i ecryptfs-utils_111-5_amd64.deb
+                  sudo dpkg -i ecryptfs-utils-dbgsym_111-5_amd64.deb
+                  
+               elif lscpu | grep GenuineIntel; then
+               
+                  wget http://snapshot.debian.org/archive/debian-debug/20200802T203936Z/pool/main/e/ecryptfs-utils/libecryptfs1-dbgsym_111-5_i386.deb
+                  wget http://snapshot.debian.org/archive/debian/20200802T204950Z/pool/main/e/ecryptfs-utils/libecryptfs1_111-5_i386.deb
+                  wget http://snapshot.debian.org/archive/debian/20200802T204950Z/pool/main/e/ecryptfs-utils/libecryptfs-dev_111-5_i386.deb
+                  wget http://snapshot.debian.org/archive/debian-debug/20200802T203936Z/pool/main/e/ecryptfs-utils/ecryptfs-utils-dbgsym_111-5_i386.deb
+                  wget http://snapshot.debian.org/archive/debian/20200802T204950Z/pool/main/e/ecryptfs-utils/ecryptfs-utils_111-5_i386.deb
+                  
+                  sudo dpkg -i libecryptfs1_111-5_i386.deb
+                  sudo dpkg -i libecryptfs1-dbgsym_111-5_i386.deb
+                  sudo dpkg -i libecryptfs-dev_111-5_i386.deb
+                  sudo dpkg -i ecryptfs-utils_111-5_i386.deb
+                  sudo dpkg -i ecryptfs-utils-dbgsym_111-5_i386.deb
+                  
+               fi
+            else
+               echo -e 'EcryptFS installation failed.'\
+                '\nPlease check your internet connection to proceed with the'\
+                '\n.Fluidity installation.'\
+                '\nCanceling the installation procedures.'
+               return
             fi
-            # Start the "rng-tools" service
-            echo "Activating rng-tools" > fluidity_installation_outcome.txt
-            sudo systemctl start rng-tools
-            ;;
-         esac
+         fi
          
-      elif [ -x "$(command -v haveged)" ]; then
+         # Correct the dependencies and do some cleaning before proceeding
+         # to the next application.
+         sleep 10
+         sudo apt-get install --fix-broken --assume-yes
+         sleep 10
+         sudo apt --fix-broken install
+         sleep 10
+         
+         # Verify and if not present install  "EXPECT"
+         if ! [ -x "$(command -v expect)" ]; then
+            if ! sudo apt-get -y install expect; then
+               echo -e 'Expect installation failed.'\
+                '\nPlease check your internet connection to proceed with the'\
+                '\n.Fluidity installation.'\
+                '\nCanceling the installation procedures.'
+               echo "genSCRIPT_fluidityRemoteClientConfiguration.sh failed"
+               return
+            fi
+         fi
+         # Verify and if not present install "LSOF"
+         if ! [ -x "$(command -v lsof)" ]; then
+            if ! sudo apt-get -y install lsof; then
+               echo -e 'LSOF installation failed.'\
+                '\nPlease check your internet connection to proceed with the'\
+                '\n.Fluidity installation.'\
+                '\nCanceling the installation procedures.'
+               echo "genSCRIPT_fluidityRemoteClientConfiguration.sh failed"
+               return
+            fi
+         fi
+   
+      fi
       
-         echo "Activating Haveged" > fluidity_installation_outcome.txt
-         sudo systemctl start haveged
-         sudo systemctl stop rng-tools
+      if [ -x "$(command -v haveged)" ]; then
+      
+         echo "genSCRIPT_fluidityRemoteClientConfiguration.sh haveged"
          
       elif [ -x "$(command -v rngd)" ]; then
       
-        echo "Activating rng-tools" > fluidity_installation_outcome.txt
-        sudo systemctl start rng-tools
-        sudo systemctl stop haveged
-        
+         echo "genSCRIPT_fluidityRemoteClientConfiguration.sh rngd"
+         
+      elif [ -x "$(command -v haveged)" ] && [ -x "$(command -v rngd)" ]; then
+      
+         if systemctl status haveged | grep "active (running)"; then
+            echo "Haveged service is currently active"
+         elif systemctl status rngd | grep "active (running)"; then
+            echo "rng-tools service is currently active"
+         fi
+   
+      elif ! [ -x "$(command -v haveged)" ] && ! [ -x "$(command -v rngd)" ]; then
+   
+         echo "genSCRIPT_fluidityRemoteClientConfiguration.sh no-entropy-boost"
+      
       fi
    
+      # Erase sig-cache.txt from previous .Fluidity installations.
+      if [[ -e /root/.ecryptfs/sig-cache.txt ]]; then
+         sudo truncate -s 0 /root/.ecryptfs/sig-cache.txt
+      fi
+   
+      mkdir ~/Fluidity_Client
 END_CAT
    
       chmod 700 ~/Fluidity_Server/Generated_Scripts/genSCRIPT_fluidityRemoteClientConfiguration.sh
       
+   fi
+   
+   if [[ ! -e ~/Fluidity_Server/Generated_Scripts/genSCRIPT_remoteRNGTOOLSinstallation.sh ]]; then
+   
+   cat <<- 'END_CAT' > ~/Fluidity_Server/Generated_Scripts/genSCRIPT_remoteRNGTOOLSinstallation.sh
+            
+      # Install the rng-tools      
+      
+      # Stop the "HAVEGED" service
+      sudo systemctl stop haveged
+   
+      # Perform a system update.
+      if ping -c 3 8.8.8.8; then
+         sudo apt-get update && sudo apt-get -y upgrade
+      else
+         echo -e 'System update failed.'\
+          '\nPlease check your internet connection to proceed with the'\
+          '\n.Fluidity installation.'\
+          '\nCanceling the installation procedures.'
+         echo "genSCRIPT_remoteRNGTOOLSinstallation.sh failed"
+         return
+      fi
+      
+      if ! sudo apt-get -y install rng-tools; then
+         echo -e 'rng-tools installation failed.'\
+          '\nPlease check your internet connection to proceed with the'\
+          '\n.Fluidity installation.'\
+          '\nCanceling the installation procedures.'
+         echo "genSCRIPT_remoteRNGTOOLSinstallation.sh failed"
+         return
+      fi
+      
+      # Start the "rng-tools" service
+      sudo systemctl start rng-tools
+END_CAT
+
+   chmod 700 ~/Fluidity_Server/Generated_Scripts/genSCRIPT_remoteRNGTOOLSinstallation.sh
+   
+   fi
+   
+   if [[ ! -e ~/Fluidity_Server/Generated_Scripts/genSCRIPT_remoteHAVEGEDinstallation.sh ]]; then
+   
+   cat <<- 'END_CAT' > ~/Fluidity_Server/Generated_Scripts/genSCRIPT_remoteHAVEGEDinstallation.sh
+         
+      # Install HAVEGED
+         
+      # Stop the "rng-tools" service
+      sudo systemctl stop rng-tools
+
+      # Perform a system update.
+      if ping -c 3 8.8.8.8; then
+         sudo apt-get update && sudo apt-get -y upgrade
+      else
+         echo -e 'System update failed.'\
+          '\nPlease check your internet connection to proceed with the'\
+          '\n.Fluidity installation.'\
+          '\nCanceling the installation procedures.'
+         echo "genSCRIPT_remoteHAVEGEDinstallation.sh failed"
+         return
+      fi
+   
+      if ! sudo apt-get -y install haveged; then
+         echo -e 'HAVEGED installation failed.'\
+          '\nPlease check your internet connection to proceed with the'\
+          '\n.Fluidity installation.'\
+          '\nCanceling the installation procedures.'
+         echo "genSCRIPT_remoteHAVEGEDinstallation.sh failed"
+         return
+      fi
+      
+      # Start the HAVEGED service
+      sudo systemctl start haveged
+END_CAT
+
+   chmod 700 ~/Fluidity_Server/Generated_Scripts/genSCRIPT_remoteHAVEGEDinstallation.sh
+
    fi
    
    if [[ ! -e ~/Fluidity_Server/Generated_Scripts/genSCRIPT_fluidityRemoteClientSSHConfiguration.sh ]]; then
@@ -1821,7 +2073,7 @@ END_CAT
                echo -e 'UFW installation failed.'\\
                 '\nPlease check your internet connection to proceed with the'\\
                 '\n.Fluidity installation.'\\
-                '\nCanceling the installation procedures.' > fluidity_failure_cause.txt
+                '\nCanceling the installation procedures.'
                 echo "genSCRIPT_fluidityRemoteClientFirewallConfiguration.sh failed"
                exit
             fi
@@ -1890,19 +2142,133 @@ END_CAT
       
    fi
    
-   # heefhEKX
-   # SSH remotely execute genSCRIPT_fluidityRemoteClientConfiguration.sh
-   if ssh $2@$1 'bash -s' < ~/Fluidity_Server/Generated_Scripts/genSCRIPT_fluidityRemoteClientConfiguration.sh $5 \
-   | tee /dev/stderr | grep "genSCRIPT_fluidityRemoteClientConfiguration.sh failed"; then
+   cat ~/Fluidity_Server/Generated_Scripts/genSCRIPT_fluidityRemoteClientConfiguration.sh \
+ | ssh pi@192.168.52.136 | tee /dev/stderr \
+ | tee ~/genSCRIPT_fluidityRemoteClientConfiguration.outcome
+   
+   if cat ~/genSCRIPT_fluidityRemoteClientConfiguration.outcome | grep "genSCRIPT_fluidityRemoteClientConfiguration.sh failed"; then
+   
       echo "Remote configuration failed. Try executing fluidityClientConfiguration directly on client to proceed with the installation"
+      
       echo "fluidityRemoteClientConfiguration failed"
+      
       return
+   
+   elif cat ~/genSCRIPT_fluidityRemoteClientConfiguration.outcome | grep "genSCRIPT_fluidityRemoteClientConfiguration.sh haveged"; then
+    
+      while true; do
+         echo -e \
+          '\n.Fluidity Remote Client Setup.'\
+          '\nHAVEGED was found. Would you like to use rng-tools instead?'\
+          '\nType [yes]: Use rng-tools'\
+          '\nType [no]: Keep using HAVEGED'\
+         && read -p "_" yn
+         case $yn in
+         [yY] | [yY][Ee][Ss] )
+            echo -e "\nInstalling rng-tools"
+            
+            # heefhEKX
+            if ssh $2@$1 'bash -s' < ~/Fluidity_Server/Generated_Scripts/genSCRIPT_remoteRNGTOOLSinstallation.sh \
+             | tee /dev/stderr | grep "genSCRIPT_genSCRIPT_remoteRNGTOOLSinstallation.sh failed"; then
+               echo "Remote configuration failed. Try executing fluidityClientConfiguration directly on client to proceed with the installation"
+               echo "fluidityRemoteClientConfiguration failed"
+               return
+            fi
+            
+            break;;
+         
+         [nN] | [nN][Oo] ) break;;
+         
+         * ) echo "Please answer yes or no.";;
+         
+         esac
+      done
+
+   elif cat ~/genSCRIPT_fluidityRemoteClientConfiguration.outcome | grep "genSCRIPT_fluidityRemoteClientConfiguration.sh rngd"; then
+    
+      while true; do
+            echo -e \
+            '\n.Fluidity Remote Client Setup.'\
+            '\rng-tools were found. Would you like to use HAVEGED instead?'\
+            '\nType [yes]: Use HAVEGED'\
+            '\nType [no]: Keep using rng-tools'\
+            && read -p "_" yn
+            case $yn in
+            [yY] | [yY][Ee][Ss] )
+               echo -e "\nInstalling HAVEGED"
+
+               # heefhEKX
+               if ssh $2@$1 'bash -s' < ~/Fluidity_Server/Generated_Scripts/genSCRIPT_remoteHAVEGEDinstallation.sh \
+                | tee /dev/stderr | grep "genSCRIPT_remoteHAVEGEDinstallation.sh failed"; then
+                  echo "Remote configuration failed. Try executing fluidityClientConfiguration directly on client to proceed with the installation"
+                  echo "fluidityRemoteClientConfiguration failed"
+                  return
+               fi
+
+               break;;
+         
+            [nN]|[nN][Oo]) break;;
+         
+            * ) echo "Please answer yes or no.";;
+         
+            esac
+         done
+         
+   elif cat ~/genSCRIPT_fluidityRemoteClientConfiguration.outcome | grep "genSCRIPT_fluidityRemoteClientConfiguration.sh no-entropy-boost"; then
+   
+         # Looped user prompt: Ask for input until a valid choice is given.
+         # Valid choice 1.: Install Haveged
+         # Valid choice 2.: Install rng-tools
+         while true; do
+            echo -e \
+            '\n.Fluidity Remote Client Setup.'\
+            '\nFluidity requires a high quality entropy source'\
+            '\nWhich utility you prefer to choose?'\
+            '\n1. for Haveged'\
+            '\n2. for rng-tools'\
+            && read -p '_' choice
+            
+            # CASE 1: For choice=1 install Haveged
+            case $choice in
+            [1]* ) echo "Installing Haveged"
+            
+               # heefhEKX
+               if ssh $2@$1 'bash -s' < ~/Fluidity_Server/Generated_Scripts/genSCRIPT_remoteHAVEGEDinstallation.sh \
+                | tee /dev/stderr | grep "genSCRIPT_remoteHAVEGEDinstallation.sh failed"; then
+                  echo "Remote configuration failed. Try executing fluidityClientConfiguration directly on client to proceed with the installation"
+                  echo "fluidityRemoteClientConfiguration failed"
+                  return
+               fi
+            
+            break;;
+         
+            # CASE 2: For choice=2 install rng-tools
+            [2]* ) echo "Installing rng-tools"
+            
+             # heefhEKX
+             if ssh $2@$1 'bash -s' < ~/Fluidity_Server/Generated_Scripts/genSCRIPT_remoteRNGTOOLSinstallation.sh \
+              | tee /dev/stderr | grep "genSCRIPT_genSCRIPT_remoteRNGTOOLSinstallation.sh failed"; then
+               echo "Remote configuration failed. Try executing fluidityClientConfiguration directly on client to proceed with the installation"
+               echo "fluidityRemoteClientConfiguration failed"
+               return
+            fi
+            
+            break;;
+         
+            # Error handling case:
+            # Display the valid choices (1 or 2) and loop again.
+            * ) echo "1 for Haveged, 2 for rng-tools";;
+            esac
+         done
+    
    fi
+   
+   rm ~/genSCRIPT_fluidityRemoteClientConfiguration.outcome
    
    # heefhEKX
    # SSH remotely execute genSCRIPT_fluidityRemoteClientFirewallConfiguration.sh
    if ssh $2@$1 'bash -s' < ~/Fluidity_Server/Generated_Scripts/genSCRIPT_fluidityRemoteClientFirewallConfiguration.sh \
-   | tee /dev/stderr | grep "genSCRIPT_fluidityRemoteClientFirewallConfiguration.sh failed"; then
+    | tee /dev/stderr | grep "genSCRIPT_fluidityRemoteClientFirewallConfiguration.sh failed"; then
       echo "Remote configuration failed. Try executing fluidityClientConfiguration directly on client to proceed with the installation"
       echo "fluidityRemoteClientConfiguration failed"
       return
@@ -2114,8 +2480,8 @@ remoteSeekAndEncryptDaemonInstallation () {
       '\n            # Case 2: Connection to server is lost. Protect the encryption immunity token by deleting'\
       '\n            # and substituting it with the file "resetSSL.txt".'\
       '\n            # We specify two conditions which must be TRUE '\
-      '\n               # 1. The absence of a SOCAT process for a specific Fluidity connection.'\
-      '\n               # 2. do_not_encrypt token not being present in tokenSlot.'\
+      '\n               # 1. The absence of a SOCAT process for the specific Fluidity connection.'\
+      '\n               # 2. do_not_encrypt token being present in tokenSlot.'\
       '\n            # If the above conditions apply, then do the following:'\
       '\n            elif [[ ! $(lsof | grep "connection.'$3'.$connection_number/clientcon.'$3'.$connection_number.pem") ]] && \\\n'\
       '               [ -f /home/'$2'/Fluidity_Client/connection.'$3'.$connection_number/tokenSlot/'$filename' ]; then'\
@@ -2144,8 +2510,8 @@ remoteSeekAndEncryptDaemonInstallation () {
       '\n'\
       '\n   # invoke a sleep process to delay the next execution circle.'\
       '\n   # Sleeping time is set between a random interval between '\
-      '\n   # of 20 to 60 seconds.'\
-      '\n   sleep $(shuf -i 20-60 -n1)'\
+      '\n   # of 5 to 7 seconds.'\
+      '\n   sleep $(shuf -i 5-7 -n1)'\
       '\n'\
       '\ndone' \
          > ~/Fluidity_Server/Generated_Scripts/FLdaemon_SeekAndEncrypt.sh
@@ -2236,8 +2602,8 @@ remoteSeekAndEncryptDaemonInstallation () {
       '\n'\
       '\n   # invoke a sleep process to delay the next execution circle.'\
       '\n   # Sleeping time is set between a random interval between '\
-      '\n   # of 20 to 60 seconds.'\
-      '\n   sleep $(shuf -i 20-60 -n1)'\
+      '\n   # of 5 to 7 seconds.'\
+      '\n   sleep $(shuf -i 5-7 -n1)'\
       '\n'\
       '\ndone' \
          > ~/Fluidity_Server/Generated_Scripts/FLdaemon_SeekAndEncrypt.sh
@@ -2860,6 +3226,7 @@ activeLinkInternalSSLrenew () {
 # 4. Server Private key (KEY) File: servercon.$1.key
 # 5. Server Public key (CRT) File: servercon.$1.crt
 # 6. Server Container file (PEM): servercon.$1.pem
+# 7. Bash script (.sh): genSCRIPT_BlockProcess.$1.sh
 
 # Invokes Functions:
 # 1. checkLocalEntropy, no args
@@ -2867,6 +3234,7 @@ activeLinkInternalSSLrenew () {
 # 4. clientFolderCreation, with args ($1), ${encr_password[$array_index]}
 # 5. clientSSLinstallation, with args ($1), ${c_password[$array_index]},
 #  $server_IP_no_whitespace, $server_username, ($2), ($3)
+# 6. deleteDoNotEncryptToken, with args ($1), ($2), ($3)
 
 # Calls the script: NONE
 
@@ -2926,13 +3294,6 @@ installSSLcertificates () {
    echo ${encr_password[$array_index]} > encr_password.$1.txt
    cat encr_password.$1.txt
 
-   # Invoke clientFolderCreation
-   # Create the encrypted Fluidity_Client folder over SSH on 
-   # client's side 
-   clientFolderCreation $1 ${encr_password[$array_index]} $2 $3
-
-   # Create the folder structure on server's side
-
    # connection[SSH_ID.SSL_ID]: The .Fluidity connection folder that will
    # contain the entirety of the relevant connection files for
    # the specific SOCAT SSL link. 
@@ -2941,6 +3302,22 @@ installSSLcertificates () {
    # Folders, that will host the backup copies of the generated SSL credentials.
    mkdir SSL_Cert_Vault/client_con.$1 \
    SSL_Cert_Vault/server_con.$1
+
+   if [[ ! -e ~/Fluidity_Server/client.$SSH_ID/connection.$1/genSCRIPT_BlockProcess.$1.sh ]]; then
+   
+   cat <<- 'END_CAT' > ~/Fluidity_Server/client.$SSH_ID/connection.$1/genSCRIPT_BlockProcess.$1.sh
+   (sudo systemctl stop FLdaemon_SeekAndEncrypt.service & sleep 30;\
+   sudo systemctl start FLdaemon_SeekAndEncrypt.service &)
+END_CAT
+
+   chmod 700 ~/Fluidity_Server/client.$SSH_ID/connection.$1/genSCRIPT_BlockProcess.$1.sh
+
+   fi
+
+   # Invoke clientFolderCreation
+   # Create the encrypted Fluidity_Client folder over SSH on 
+   # client's side 
+   clientFolderCreation $1 ${encr_password[$array_index]} $2 $3
 
    # SECTION 2: Generate passwords for the SSL certificates by using the 
    # openssl rand function and store the outcome to variables:
@@ -3035,6 +3412,9 @@ EOF
     SSL_Cert_Vault/server_con.$1
    mv clientcon.$1.pem servercon.$1.crt c_password.$1.txt encr_password.$1.txt \
     c_bogus_password.$1.txt hashed_clientpass_con.$1.txt SSL_Cert_Vault/client_con.$1
+   
+   # Invoke deleteDoNotEncryptToken
+   deleteDoNotEncryptToken $1 $2 $3
     
 }
 
@@ -3234,8 +3614,12 @@ EOF
 # Generates: 
 # 1. Bash script (.sh): genSCRIPT_clientFolderCreation.sh $1 $2
 
+# Invokes Functions:
+# 1. copyDoNotEncryptToken, with args: ($1), ($3), ($4)
+
 # Calls the script: 
-# 1. genSCRIPT_clientFolderCreation.sh, with args ($1), ($2)
+# 1. genSCRIPT_BlockProcess.[SSH_ID.SSL_ID].sh, no args.
+# 2. genSCRIPT_clientFolderCreation.sh, with args ($1), ($2)
 # in ~/Fluidity_Server/Generated_Scripts
 
 # Function Description:  
@@ -3246,6 +3630,8 @@ EOF
 # that will act as a placeholder for the encryption prevention token.
 
 clientFolderCreation () {
+   
+   local SSH_ID=${1%.*}
 
    if [[ ! -e ~/Fluidity_Server/Generated_Scripts/genSCRIPT_clientFolderCreation.sh ]]; then
    
@@ -3277,10 +3663,15 @@ clientFolderCreation () {
    fi
    
    # heefhEKX
+   ssh $4@$3 'bash -s' < ~/Fluidity_Server/client.$SSH_ID/connection.$1/genSCRIPT_BlockProcess.$1.sh &
+   
+   # heefhEKX
    # SSH remotely execute genSCRIPT_clientFolderCreation.sh
    ssh $4@$3 'bash -s' < ~/Fluidity_Server/Generated_Scripts/genSCRIPT_clientFolderCreation.sh \
 	$1 $2
   
+   # Invoke copyDoNotEncryptToken
+   copyDoNotEncryptToken $1 $3 $4
 }
 
 # Arguments: ($1), ($2), ($3), ($4)
@@ -4636,6 +5027,11 @@ establishSOCATlink () {
    # (Triggered when netstat reports that the link is ESTABLISED)
    openTheTunnelInterfaces $1 $2 $3 $4 $9 &
    
+   #Invoke deleteTokenFromClient
+   # Once the link is established, delete the doNotEncrypt token
+   # from client machine.
+   deleteTokenFromClient $1 $5 $6 &
+   
    # Invoke reportWhenFirewallRulesAreAdded
    # Report the UFW status when the link is detected as established.
    # (Triggered when netstat reports that the link is ESTABLISED)
@@ -5099,11 +5495,12 @@ runTUNnelSOCATserver () {
 
 # Invokes functions:
 # 1. checkForConnectionFolderAndDecrypt, with args: ($1), ($4), ($5)
-# 2. verifyThatTokenSlotFolderIsEmpty, with args: ($1), ($4), ($5)
+# 2. copyDoNotEncryptToken, with args: ($1), ($4), ($5)
+# 2. verifyThatResetSSLisMissing, with args: ($1), ($4), ($5)
 # 3. verifyTheSSLCertificates, with args: ($1), ($4), ($5)
 # 4. doAClientServerMD5EquivalencyCheck, with args: ($1), ($4), ($5)
 # 5. doAClientServerSHA256EquivalencyCheck, with args: ($1), ($4), ($5)
-# 6. inactiveLinkInternalSSLrenew, with args: ($1)
+# 6. reinstallSSLcerts, with args: ($1), ($4), ($5), ($7)
 # 7. runSOCATclient, with args: ($1), ($2), ($3), ($4), ($5), ($6)
 # 8. encryptClient, with args: ($1), ($4), ($5)
 
@@ -5167,18 +5564,21 @@ runPersistentSOCATClient () {
          
          # rZ7y4zq
          # Debugging information message 4
-         echo "Inside the Loop and proceeding with runSOCATclient."
-         echo "Ping delay is: $ping_delay"
+         # echo "Inside the Loop and proceeding with runSOCATclient."
+         # echo "Ping delay is: $ping_delay"
          
-         # Do a FLdaemon_SeekAndEncrypt.service reset to restart its 
-         # timers. 
-         ssh $5@$4 'sudo systemctl restart FLdaemon_SeekAndEncrypt.service'
-         
+         # heefhEKX
+         ssh $5@$4 'sudo systemctl stop FLdaemon_SeekAndEncrypt.service & sleep 10;\
+         sudo systemctl start FLdaemon_SeekAndEncrypt.service' &     
+           
          # S99zBE5
          # Invoke checkForConnectionFolderAndDecrypt:
          # Client communication has been established. Now see whether
          # the client folder is decrypted. If not, then decrypt it.
-         checkForConnectionFolderAndDecrypt $1 $4 $5 &>/dev/null 
+         checkForConnectionFolderAndDecrypt $1 $4 $5  
+         
+         # Invoke copyDoNotEncryptToken
+         copyDoNotEncryptToken $1 $4 $5
          
          # The following section covers the possiblity of a
          # corrupted - incomplete SSL installation. 
@@ -5198,14 +5598,14 @@ runPersistentSOCATClient () {
          # Safety Check 4: Verify that .crt and .pem client - server
          # SHA256 hashes match.
          
-         # Invoke verifyThatTokenSlotFolderIsEmpty
+         # Invoke verifyThatResetSSLisMissing
          # Invoke verifyTheSSLCertificates
          # Invoke doAClientServerMD5EquivalencyCheck
          # Invoke doAClientServerSHA256EquivalencyCheck
          
          # While any of the following conditions is true perform a SSL
          # substitution.
-         while verifyThatTokenSlotFolderIsEmpty $1 $4 $5 | grep -e 'verifyThatTokenSlotFolderIsEmpty FAILED'\
+         while verifyThatResetSSLisMissing $1 $4 $5 | grep -e 'verifyThatResetSSLisMissing FAILED'\
           || verifyThatSSLCertificatesExist $1 $4 $5 | grep -e 'verifyThatSSLCertificatesExist FAILED'\
            || doAClientServerMD5EquivalencyCheck $1 $4 $5 | tee /dev/stderr | grep -e 'doAClientServerMD5EquivalencyCheck FAILED'\
             || doAClientServerSHA256EquivalencyCheck $1 $4 $5 | tee /dev/stderr | grep -e 'doAClientServerSHA256EquivalencyCheck FAILED'; do
@@ -5221,15 +5621,7 @@ runPersistentSOCATClient () {
             # Invoke internalSSLrenew
             # An aforomentioned safety check failed. Initiate an SSL
             # substitution.
-            inactiveLinkInternalSSLrenew $1
-            
-            # Do a FLdaemon_SeekAndEncrypt.service reset to restart its 
-			# timers. 
-			ssh $5@$4 'sudo systemctl restart FLdaemon_SeekAndEncrypt.service'
-         
-            # Invoke checkForConnectionFolderAndDecrypt:
-            # Do a preemptive connection client folder decryption.
-            checkForConnectionFolderAndDecrypt $1 $4 $5
+            reinstallSSLcerts $1 $4 $5 $7
          
          done
 
@@ -5762,6 +6154,53 @@ encryptClient () {
 }
 
 
+# Arguments: ($1), ($2), ($3)
+# $1: .Fluidity Connection ID [SSH_ID.SSL_ID]
+# $2: Client IP address
+# $3: Client username (for raspbian OS the default is pi@)
+
+# Sourced Variables: NONE
+
+# Intershell File Variables in use: NONE
+
+# Global Variables in use: NONE
+
+# Generates: Nothing
+ 
+# Invokes Functions: NONE
+
+# Calls the script: NONE
+
+# Function Description: Once the link is established, delete the 
+# doNotEncrypt token from client machine.
+deleteTokenFromClient () {
+	
+	 # While $allow_execution is 1 (.Fluidity execution is allowed)
+   while [ $(getAllowExecution $1) -eq 1 ];
+   
+   do
+      
+      # And If netstat reports that the specific SOCAT connection is
+      # established
+      if [[ $(getNetstatConnectionStatus $2) == "ESTABLISHED" ]]; then
+      
+         # Invoke deleteDoNotEncryptToken
+         deleteDoNotEncryptToken $1 $2 $3
+         # Once you delete the doNotEcryptToken, break the loop.
+         break
+         
+      else
+      
+         # Link is still not ESTABLISHED. Sleep for 1 sec.
+         sleep 1
+         
+      fi
+      
+   done
+	
+}
+
+
 # 6. .Fluidity Engine Functions
 # 6.2 Private Functions
 # 6.2.4 SSL Certificates Verification Functions
@@ -5786,15 +6225,15 @@ encryptClient () {
 
 # Function Description: Do a verification check that tokenSlot folder
 # is empty and contains no files.
-verifyThatTokenSlotFolderIsEmpty () {
+verifyThatResetSSLisMissing () {
    
    # heefhEKX
-   if [ "$(ssh $3@$2 ls -A ~/Fluidity_Client/connection.$1/tokenSlot)" ]; then
+   if [ "$(ssh $3@$2 ls ~/Fluidity_Client/connection.$1/tokenSlot/resetSSL.txt)" ]; then
       # Message to calling function.
-      echo "verifyThatTokenSlotFolderIsEmpty FAILED"
+      echo "verifyThatResetSSLisMissing FAILED"
    else
       # Message to calling function.
-      echo "verifyThatTokenSlotFolderIsEmpty PASSED"
+      echo "verifyThatResetSSLisMissing PASSED"
    fi
    
 }
@@ -6704,10 +7143,117 @@ findInterfaceFromIP () {
 
 # Function Description: Give a boost to the server's entropy by 
 # installing HAVEGED or rng-tools.
-
 giveAnEntropyBoost () {
    
-   if ! [ -x "$(command -v haveged)" ] && [ -x "$(command -v rngd)" ]; then
+   if [ -x "$(command -v haveged)" ]; then
+      
+      while true; do
+         echo -e \
+          '\nHAVEGED was found. Would you like to use rng-tools instead?'\
+          '\nType [yes]: Use rng-tools'\
+          '\nType [no]: Keep using HAVEGED'\
+         && read -p "_" yn
+         case $yn in
+         [yY] | [yY][Ee][Ss] )
+            echo -e "\nInstalling rng-tools"
+         
+            # Stop the "HAVEGED" service
+            sudo systemctl stop haveged
+         
+            # Perform a system update.
+            if ping -c 3 8.8.8.8; then
+               sudo apt-get update && sudo apt-get -y upgrade
+            else
+               echo -e 'System update failed.'\
+               '\nPlease check your internet connection to proceed with the'\
+               '\n.Fluidity installation.'\
+               '\nCanceling the installation procedures.'
+               echo "fluidityServerConfiguration failed"
+               return
+            fi
+            
+            if ! sudo apt-get -y install rng-tools; then
+               echo -e 'rng-tools installation failed.'\
+                '\nPlease check your internet connection to proceed with the'\
+                '\n.Fluidity installation.'\
+                '\nCanceling the installation procedures.'
+                echo "giveAnEntropyBoost failed"
+               return
+            fi
+            
+            # Start the "rng-tools" service
+            sudo systemctl start rng-tools
+            
+            break;;
+         
+         [nN] | [nN][Oo] ) exit;;
+         
+         * ) echo "Please answer yes or no.";;
+         
+         esac
+      done
+   
+   elif [ -x "$(command -v rng-tools)" ]; then
+      
+      while true; do
+         echo -e \
+          '\rng-tools were found. Would you like to use HAVEGED instead?'\
+          '\nType [yes]: Use HAVEGED'\
+          '\nType [no]: Keep using rng-tools'\
+         && read -p "_" yn
+         case $yn in
+         [yY] | [yY][Ee][Ss] )
+            echo -e "\nInstalling HAVEGED"
+         
+            # Stop the "rng-tools" service
+            sudo systemctl stop rng-tools
+         
+            # Perform a system update.
+            if ping -c 3 8.8.8.8; then
+               sudo apt-get update && sudo apt-get -y upgrade
+            else
+               echo -e 'System update failed.'\
+               '\nPlease check your internet connection to proceed with the'\
+               '\n.Fluidity installation.'\
+               '\nCanceling the installation procedures.'
+               echo "fluidityServerConfiguration failed"
+               return
+            fi
+            
+            if ! sudo apt-get -y install haveged; then
+               echo -e 'HAVEGED installation failed.'\
+                '\nPlease check your internet connection to proceed with the'\
+                '\n.Fluidity installation.'\
+                '\nCanceling the installation procedures.'
+                echo "giveAnEntropyBoost failed"
+               return
+            fi
+            
+            # Start the "rng-tools" service
+            sudo systemctl start haveged
+            
+            break;;
+         
+         [nN] | [nN][Oo] ) exit;;
+         
+         * ) echo "Please answer yes or no.";;
+         
+         esac
+      done
+   
+   elif ! [ -x "$(command -v haveged)" ] && ! [ -x "$(command -v rngd)" ]; then
+   
+      # Perform a system update.
+      if ping -c 3 8.8.8.8; then
+         sudo apt-get update && sudo apt-get -y upgrade
+      else
+         echo -e 'System update failed.'\
+          '\nPlease check your internet connection to proceed with the'\
+          '\n.Fluidity installation.'\
+          '\nCanceling the installation procedures.'
+          echo "fluidityServerConfiguration failed"
+          return
+      fi
    
       # Looped user prompt: Ask for input until a valid choice is given.
       # Valid choice 1.: Install Haveged
@@ -6727,7 +7273,7 @@ giveAnEntropyBoost () {
                echo -e 'Haveged installation failed.'\
                 '\nPlease check your internet connection to proceed with the'\
                 '\n.Fluidity installation.'\
-                '\nCanceling the installation procedures.' > fluidity_failure_cause.txt
+                '\nCanceling the installation procedures.'
                 echo "giveAnEntropyBoost failed"
                return
             fi
@@ -6743,7 +7289,7 @@ giveAnEntropyBoost () {
                echo -e 'rng-tools installation failed.'\
                 '\nPlease check your internet connection to proceed with the'\
                 '\n.Fluidity installation.'\
-                '\nCanceling the installation procedures.' > fluidity_failure_cause.txt
+                '\nCanceling the installation procedures.'
                 echo "giveAnEntropyBoost failed"
                return
             fi
@@ -6759,11 +7305,7 @@ giveAnEntropyBoost () {
          esac
          
       done
-   
-   elif [ -x "$(command -v haveged)" ]; then
-      echo "Haveged is already installed"
-   else
-      echo "rng-tools are already installed"
+      
    fi
   
    # Perform an entropy check on local machine and return a warning message if
