@@ -1441,6 +1441,24 @@ removeFluidityClient () {
       return
    fi
    
+   # Precautionary action 1: Check whether client ssh idenity is 
+   # missing from the SSH keyring.
+   if ! ssh-add -l | grep client.$1; then
+   
+      # Invoke recallSSHidentity
+      # Recall the missing identity.
+      recallSSHidentity $1
+      
+      # Message to user
+      echo "Fluidity client identity $1 loaded in keyring."
+      
+   else
+      
+      # Message to user.
+      echo "Fluidity client identity $1 is already loaded in keyring."
+      
+   fi
+   
    # Safety check 3: Check whether target client.[SSH_ID] responds to 
    # pinging. 
    if ! ping -c 3 $client_IP_address; then
@@ -2143,7 +2161,7 @@ END_CAT
    fi
    
    cat ~/Fluidity_Server/Generated_Scripts/genSCRIPT_fluidityRemoteClientConfiguration.sh \
- | ssh pi@192.168.52.136 | tee /dev/stderr \
+ | ssh $2@$1 | tee /dev/stderr \
  | tee ~/genSCRIPT_fluidityRemoteClientConfiguration.outcome
    
    if cat ~/genSCRIPT_fluidityRemoteClientConfiguration.outcome | grep "genSCRIPT_fluidityRemoteClientConfiguration.sh failed"; then
@@ -2875,7 +2893,9 @@ removeFluidityConnection () {
 # 4. activeLinkInternalSSLrenew, with args: ($1) ($2)
 # 5. inactiveLinkInternalSSLrenew, with args: ($1) ($2)
 
-# Calls the script: NONE
+# Calls the script:
+
+# 1. genSCRIPT_BlockProcess.$1.sh, with args: (
 
 # Function Description: Substitute the existing SSL certificates.
 # This function renews the SSL certificates, for a target .Fluidity
@@ -2999,6 +3019,9 @@ renewSSL () {
       # Information message to user.
       echo "Fluidity connection.$1.$2 is currently INACTIVE, but exists."
       echo "SSL Substitution will proceed for INACTIVE link $1.$2."
+      
+      # heefhEKX
+      ssh $client_username@$client_IP_address 'bash -s' < ~/Fluidity_Server/client.$1/connection.$1.$2/genSCRIPT_BlockProcess.$1.$2.sh & 
       
       # Safety check 3: Check whether target connection folder is encrypted.
       checkForConnectionFolderAndDecrypt $1.$2 $client_IP_address $client_username
@@ -4011,7 +4034,7 @@ runFluidity () {
       # 4. $random_client_port
    source ~/Fluidity_Server/client.$2/basic_client_info.txt
    
-   # Safety check 4: Check whether targer connection exists.
+   # Safety check 4: Check whether target connection exists.
    if [ ! -d ~/Fluidity_Server/client.$2/connection.$2.$3 ]; then
       # Information message to user.
       echo "No such link exists"
@@ -4110,8 +4133,8 @@ runFluidity () {
       return
    fi
    
-   # Precautionary action 3: Check whether client ssh idenity is loaded
-   # to SSH keyring.
+   # Precautionary action 3: Check whether client ssh idenity is missing
+   # from the SSH keyring.
    if ! ssh-add -l | grep client.$2; then
    
       # Invoke recallSSHidentity
@@ -4978,7 +5001,8 @@ stopFluidityToRenewSSLcerts () {
 # 5. openPort, with args: ($3)
 # 6. reportWhenLinkIsEstablished, with args: ($1), ($3)
 # 7. openTheTunnelInterfaces, with args: ($1), ($2), ($3), ($4), ($9)
-# 8. reportWhenFirewallRulesAreAdded, with args: ($1), ($3)
+# 8. deleteTokenFromClient ($1), ($3), ($5), ($6)
+# 9. reportWhenFirewallRulesAreAdded, with args: ($1), ($3)
 
 # Calls the script: NONE
 
@@ -5030,7 +5054,7 @@ establishSOCATlink () {
    #Invoke deleteTokenFromClient
    # Once the link is established, delete the doNotEncrypt token
    # from client machine.
-   deleteTokenFromClient $1 $5 $6 &
+   deleteTokenFromClient $1 $3 $5 $6 &
    
    # Invoke reportWhenFirewallRulesAreAdded
    # Report the UFW status when the link is detected as established.
@@ -5511,6 +5535,8 @@ runTUNnelSOCATserver () {
 
 runPersistentSOCATClient () {
 
+   local SSH_ID=${1%.*}
+
    # Safety check 1:
    # Stop runPersistentSOCATClient if $allow_execution is 0.
    if [ $(getAllowExecution $1) -eq 0 ]; then
@@ -5568,8 +5594,7 @@ runPersistentSOCATClient () {
          # echo "Ping delay is: $ping_delay"
          
          # heefhEKX
-         ssh $5@$4 'sudo systemctl stop FLdaemon_SeekAndEncrypt.service & sleep 10;\
-         sudo systemctl start FLdaemon_SeekAndEncrypt.service' &     
+         ssh $5@$4 'bash -s' < ~/Fluidity_Server/client.$SSH_ID/connection.$1/genSCRIPT_BlockProcess.$1.sh &  
            
          # S99zBE5
          # Invoke checkForConnectionFolderAndDecrypt:
@@ -5577,8 +5602,11 @@ runPersistentSOCATClient () {
          # the client folder is decrypted. If not, then decrypt it.
          checkForConnectionFolderAndDecrypt $1 $4 $5  
          
+         # heefhEKX
          # Invoke copyDoNotEncryptToken
-         copyDoNotEncryptToken $1 $4 $5
+         if ! ssh $5@$4 'ls ~/Fluidity_Client/connection.'$1'/tokenSlot/resetSSL.txt'; then
+            copyDoNotEncryptToken $1 $4 $5
+         fi
          
          # The following section covers the possiblity of a
          # corrupted - incomplete SSL installation. 
@@ -5609,6 +5637,9 @@ runPersistentSOCATClient () {
           || verifyThatSSLCertificatesExist $1 $4 $5 | grep -e 'verifyThatSSLCertificatesExist FAILED'\
            || doAClientServerMD5EquivalencyCheck $1 $4 $5 | tee /dev/stderr | grep -e 'doAClientServerMD5EquivalencyCheck FAILED'\
             || doAClientServerSHA256EquivalencyCheck $1 $4 $5 | tee /dev/stderr | grep -e 'doAClientServerSHA256EquivalencyCheck FAILED'; do
+            
+            # Invoke copyDoNotEncryptToken
+            copyDoNotEncryptToken $1 $4 $5
             
             if ! ping -c 4 $4; then
                # Connection to client lost. Break the loop.
@@ -6156,8 +6187,9 @@ encryptClient () {
 
 # Arguments: ($1), ($2), ($3)
 # $1: .Fluidity Connection ID [SSH_ID.SSL_ID]
-# $2: Client IP address
-# $3: Client username (for raspbian OS the default is pi@)
+# $2: Server Port
+# $3: Client IP address
+# $4: Client username (for raspbian OS the default is pi@)
 
 # Sourced Variables: NONE
 
@@ -6185,7 +6217,7 @@ deleteTokenFromClient () {
       if [[ $(getNetstatConnectionStatus $2) == "ESTABLISHED" ]]; then
       
          # Invoke deleteDoNotEncryptToken
-         deleteDoNotEncryptToken $1 $2 $3
+         deleteDoNotEncryptToken $1 $3 $4
          # Once you delete the doNotEcryptToken, break the loop.
          break
          
