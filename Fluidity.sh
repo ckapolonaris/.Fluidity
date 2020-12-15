@@ -739,72 +739,47 @@ fluidityServerConfiguration () {
          fi
       fi
       # Verify and if not present install the 111.5 ecryptfs version
-      if ! [ -x "$(command -v ecryptfsd)" ]; then
-         if ping -c 3 8.8.8.8; then
-         
-            DEPS="gettext-base keyutils libassuan0 libgpg-error0 libc6 libkeyutils1 libpam-runtime 
-            libgpg-error0 libpam0g libgpgme11 libtspi1 cryptsetup cryptsetup lsof rsync libnss3"
-            sudo apt-get install $DEPS
+         if ! [ -x "$(command -v ecryptfsd)" ]; then
+            if ping -c 3 8.8.8.8; then
             
-            if lscpu | grep ARM; then
-            
-               wget http://snapshot.debian.org/archive/debian-debug/20200802T203936Z/pool/main/e/ecryptfs-utils/libecryptfs1-dbgsym_111-5_armhf.deb
-               wget http://snapshot.debian.org/archive/debian/20200802T204950Z/pool/main/e/ecryptfs-utils/libecryptfs1_111-5_armhf.deb
-               wget http://snapshot.debian.org/archive/debian/20200802T204950Z/pool/main/e/ecryptfs-utils/libecryptfs-dev_111-5_armhf.deb
-               wget http://snapshot.debian.org/archive/debian-debug/20200802T203936Z/pool/main/e/ecryptfs-utils/ecryptfs-utils-dbgsym_111-5_armhf.deb
-               wget http://snapshot.debian.org/archive/debian/20200802T204950Z/pool/main/e/ecryptfs-utils/ecryptfs-utils_111-5_armhf.deb
-            
-               sudo dpkg -i libecryptfs1_111-5_armhf.deb
-               sudo dpkg -i libecryptfs1-dbgsym_111-5_armhf.deb
-               sudo dpkg -i libecryptfs-dev_111-5_armhf.deb
-               sudo dpkg -i ecryptfs-utils_111-5_armhf.deb
-               sudo dpkg -i ecryptfs-utils-dbgsym_111-5_armhf.deb
+               DEPS="libtspi1"
+               sudo apt-get install $DEPS
                
-            elif lscpu | grep AMD; then
-            
-               wget http://snapshot.debian.org/archive/debian-debug/20200802T203936Z/pool/main/e/ecryptfs-utils/libecryptfs1-dbgsym_111-5_amd64.deb
-               wget http://snapshot.debian.org/archive/debian/20200802T204950Z/pool/main/e/ecryptfs-utils/libecryptfs1_111-5_amd64.deb
-               wget http://snapshot.debian.org/archive/debian/20200802T204950Z/pool/main/e/ecryptfs-utils/libecryptfs-dev_111-5_amd64.deb
-               wget http://snapshot.debian.org/archive/debian-debug/20200802T203936Z/pool/main/e/ecryptfs-utils/ecryptfs-utils-dbgsym_111-5_amd64.deb
-               wget http://snapshot.debian.org/archive/debian/20200802T204950Z/pool/main/e/ecryptfs-utils/ecryptfs-utils_111-5_amd64.deb
+               if lscpu | grep ARM; then
                
-               sudo dpkg -i libecryptfs1_111-5_amd64.deb
-               sudo dpkg -i libecryptfs1-dbgsym_111-5_amd64.deb
-               sudo dpkg -i libecryptfs-dev_111-5_amd64.deb
-               sudo dpkg -i ecryptfs-utils_111-5_amd64.deb
-               sudo dpkg -i ecryptfs-utils-dbgsym_111-5_amd64.deb
+                  wget http://snapshot.debian.org/archive/debian-debug/20200802T203936Z/pool/main/e/ecryptfs-utils/libecryptfs1-dbgsym_111-5_armhf.deb
+                  wget http://snapshot.debian.org/archive/debian/20200802T204950Z/pool/main/e/ecryptfs-utils/libecryptfs1_111-5_armhf.deb
+                  wget http://snapshot.debian.org/archive/debian-debug/20200802T203936Z/pool/main/e/ecryptfs-utils/ecryptfs-utils-dbgsym_111-5_armhf.deb
+                  wget http://snapshot.debian.org/archive/debian/20200802T204950Z/pool/main/e/ecryptfs-utils/ecryptfs-utils_111-5_armhf.deb
                
-            elif lscpu | grep GenuineIntel; then
-            
-               wget http://snapshot.debian.org/archive/debian-debug/20200802T203936Z/pool/main/e/ecryptfs-utils/libecryptfs1-dbgsym_111-5_i386.deb
-               wget http://snapshot.debian.org/archive/debian/20200802T204950Z/pool/main/e/ecryptfs-utils/libecryptfs1_111-5_i386.deb
-               wget http://snapshot.debian.org/archive/debian/20200802T204950Z/pool/main/e/ecryptfs-utils/libecryptfs-dev_111-5_i386.deb
-               wget http://snapshot.debian.org/archive/debian-debug/20200802T203936Z/pool/main/e/ecryptfs-utils/ecryptfs-utils-dbgsym_111-5_i386.deb
-               wget http://snapshot.debian.org/archive/debian/20200802T204950Z/pool/main/e/ecryptfs-utils/ecryptfs-utils_111-5_i386.deb
+                  sudo dpkg -i libecryptfs1_111-5_armhf.deb
+                  sudo dpkg -i libecryptfs1-dbgsym_111-5_armhf.deb
+                  sudo dpkg -i ecryptfs-utils_111-5_armhf.deb
+                  sudo dpkg -i ecryptfs-utils-dbgsym_111-5_armhf.deb
+                  
+               else
                
-               sudo dpkg -i libecryptfs1_111-5_i386.deb
-               sudo dpkg -i libecryptfs1-dbgsym_111-5_i386.deb
-               sudo dpkg -i libecryptfs-dev_111-5_i386.deb
-               sudo dpkg -i ecryptfs-utils_111-5_i386.deb
-               sudo dpkg -i ecryptfs-utils-dbgsym_111-5_i386.deb
-               
+                  wget http://snapshot.debian.org/archive/debian-debug/20200802T203936Z/pool/main/e/ecryptfs-utils/libecryptfs1-dbgsym_111-5_i386.deb
+                  wget http://snapshot.debian.org/archive/debian/20200802T204950Z/pool/main/e/ecryptfs-utils/libecryptfs1_111-5_i386.deb
+                  wget http://snapshot.debian.org/archive/debian-debug/20200802T203936Z/pool/main/e/ecryptfs-utils/ecryptfs-utils-dbgsym_111-5_i386.deb
+                  wget http://snapshot.debian.org/archive/debian/20200802T204950Z/pool/main/e/ecryptfs-utils/ecryptfs-utils_111-5_i386.deb
+                  
+                  sudo dpkg -i libecryptfs1_111-5_i386.deb
+                  sudo dpkg -i libecryptfs1-dbgsym_111-5_i386.deb
+                  sudo dpkg -i ecryptfs-utils_111-5_i386.deb
+                  sudo dpkg -i ecryptfs-utils-dbgsym_111-5_i386.deb
+                  
+               fi
+            else
+               echo -e 'EcryptFS installation failed.'\
+                '\nPlease check your internet connection to proceed with the'\
+                '\n.Fluidity installation.'\
+                '\nCanceling the installation procedures.'
+               return
             fi
-         else
-            echo -e 'EcryptFS installation failed.'\
-             '\nPlease check your internet connection to proceed with the'\
-             '\n.Fluidity installation.'\
-             '\nCanceling the installation procedures.'
-            return
          fi
-      fi
-      
-      # Correct the dependencies and do some cleaning before proceeding
-      # to the next application.
-      sleep 10
-      sudo apt-get install --fix-broken --assume-yes
-      sleep 10
-      sudo apt --fix-broken install
-      sleep 10
+         
+         rm *.deb
       
       # Verify and if not present install  "EXPECT"
       if ! [ -x "$(command -v expect)" ]; then
@@ -1062,72 +1037,48 @@ fluidityClientConfiguration () {
          fi
       fi
       # Verify and if not present install the 111.5 ecryptfs version
-      if ! [ -x "$(command -v ecryptfsd)" ]; then
-         if ping -c 3 8.8.8.8; then
-         
-            DEPS="gettext-base keyutils libassuan0 libgpg-error0 libc6 libkeyutils1 libpam-runtime 
-            libgpg-error0 libpam0g libgpgme11 libtspi1 cryptsetup cryptsetup lsof rsync libnss3"
-            sudo apt-get install $DEPS
+      # Verify and if not present install the 111.5 ecryptfs version
+         if ! [ -x "$(command -v ecryptfsd)" ]; then
+            if ping -c 3 8.8.8.8; then
             
-            if lscpu | grep ARM; then
-            
-               wget http://snapshot.debian.org/archive/debian-debug/20200802T203936Z/pool/main/e/ecryptfs-utils/libecryptfs1-dbgsym_111-5_armhf.deb
-               wget http://snapshot.debian.org/archive/debian/20200802T204950Z/pool/main/e/ecryptfs-utils/libecryptfs1_111-5_armhf.deb
-               wget http://snapshot.debian.org/archive/debian/20200802T204950Z/pool/main/e/ecryptfs-utils/libecryptfs-dev_111-5_armhf.deb
-               wget http://snapshot.debian.org/archive/debian-debug/20200802T203936Z/pool/main/e/ecryptfs-utils/ecryptfs-utils-dbgsym_111-5_armhf.deb
-               wget http://snapshot.debian.org/archive/debian/20200802T204950Z/pool/main/e/ecryptfs-utils/ecryptfs-utils_111-5_armhf.deb
-            
-               sudo dpkg -i libecryptfs1_111-5_armhf.deb
-               sudo dpkg -i libecryptfs1-dbgsym_111-5_armhf.deb
-               sudo dpkg -i libecryptfs-dev_111-5_armhf.deb
-               sudo dpkg -i ecryptfs-utils_111-5_armhf.deb
-               sudo dpkg -i ecryptfs-utils-dbgsym_111-5_armhf.deb
+               DEPS="libtspi1"
+               sudo apt-get install $DEPS
                
-            elif lscpu | grep AMD; then
-            
-               wget http://snapshot.debian.org/archive/debian-debug/20200802T203936Z/pool/main/e/ecryptfs-utils/libecryptfs1-dbgsym_111-5_amd64.deb
-               wget http://snapshot.debian.org/archive/debian/20200802T204950Z/pool/main/e/ecryptfs-utils/libecryptfs1_111-5_amd64.deb
-               wget http://snapshot.debian.org/archive/debian/20200802T204950Z/pool/main/e/ecryptfs-utils/libecryptfs-dev_111-5_amd64.deb
-               wget http://snapshot.debian.org/archive/debian-debug/20200802T203936Z/pool/main/e/ecryptfs-utils/ecryptfs-utils-dbgsym_111-5_amd64.deb
-               wget http://snapshot.debian.org/archive/debian/20200802T204950Z/pool/main/e/ecryptfs-utils/ecryptfs-utils_111-5_amd64.deb
+               if lscpu | grep ARM; then
                
-               sudo dpkg -i libecryptfs1_111-5_amd64.deb
-               sudo dpkg -i libecryptfs1-dbgsym_111-5_amd64.deb
-               sudo dpkg -i libecryptfs-dev_111-5_amd64.deb
-               sudo dpkg -i ecryptfs-utils_111-5_amd64.deb
-               sudo dpkg -i ecryptfs-utils-dbgsym_111-5_amd64.deb
+                  wget http://snapshot.debian.org/archive/debian-debug/20200802T203936Z/pool/main/e/ecryptfs-utils/libecryptfs1-dbgsym_111-5_armhf.deb
+                  wget http://snapshot.debian.org/archive/debian/20200802T204950Z/pool/main/e/ecryptfs-utils/libecryptfs1_111-5_armhf.deb
+                  wget http://snapshot.debian.org/archive/debian-debug/20200802T203936Z/pool/main/e/ecryptfs-utils/ecryptfs-utils-dbgsym_111-5_armhf.deb
+                  wget http://snapshot.debian.org/archive/debian/20200802T204950Z/pool/main/e/ecryptfs-utils/ecryptfs-utils_111-5_armhf.deb
                
-            elif lscpu | grep GenuineIntel; then
-            
-               wget http://snapshot.debian.org/archive/debian-debug/20200802T203936Z/pool/main/e/ecryptfs-utils/libecryptfs1-dbgsym_111-5_i386.deb
-               wget http://snapshot.debian.org/archive/debian/20200802T204950Z/pool/main/e/ecryptfs-utils/libecryptfs1_111-5_i386.deb
-               wget http://snapshot.debian.org/archive/debian/20200802T204950Z/pool/main/e/ecryptfs-utils/libecryptfs-dev_111-5_i386.deb
-               wget http://snapshot.debian.org/archive/debian-debug/20200802T203936Z/pool/main/e/ecryptfs-utils/ecryptfs-utils-dbgsym_111-5_i386.deb
-               wget http://snapshot.debian.org/archive/debian/20200802T204950Z/pool/main/e/ecryptfs-utils/ecryptfs-utils_111-5_i386.deb
+                  sudo dpkg -i libecryptfs1_111-5_armhf.deb
+                  sudo dpkg -i libecryptfs1-dbgsym_111-5_armhf.deb
+                  sudo dpkg -i ecryptfs-utils_111-5_armhf.deb
+                  sudo dpkg -i ecryptfs-utils-dbgsym_111-5_armhf.deb
+                  
+               else
                
-               sudo dpkg -i libecryptfs1_111-5_i386.deb
-               sudo dpkg -i libecryptfs1-dbgsym_111-5_i386.deb
-               sudo dpkg -i libecryptfs-dev_111-5_i386.deb
-               sudo dpkg -i ecryptfs-utils_111-5_i386.deb
-               sudo dpkg -i ecryptfs-utils-dbgsym_111-5_i386.deb
-               
+                  wget http://snapshot.debian.org/archive/debian-debug/20200802T203936Z/pool/main/e/ecryptfs-utils/libecryptfs1-dbgsym_111-5_i386.deb
+                  wget http://snapshot.debian.org/archive/debian/20200802T204950Z/pool/main/e/ecryptfs-utils/libecryptfs1_111-5_i386.deb
+                  wget http://snapshot.debian.org/archive/debian-debug/20200802T203936Z/pool/main/e/ecryptfs-utils/ecryptfs-utils-dbgsym_111-5_i386.deb
+                  wget http://snapshot.debian.org/archive/debian/20200802T204950Z/pool/main/e/ecryptfs-utils/ecryptfs-utils_111-5_i386.deb
+                  
+                  sudo dpkg -i libecryptfs1_111-5_i386.deb
+                  sudo dpkg -i libecryptfs1-dbgsym_111-5_i386.deb
+                  sudo dpkg -i ecryptfs-utils_111-5_i386.deb
+                  sudo dpkg -i ecryptfs-utils-dbgsym_111-5_i386.deb
+                  
+               fi
+            else
+               echo -e 'EcryptFS installation failed.'\
+                '\nPlease check your internet connection to proceed with the'\
+                '\n.Fluidity installation.'\
+                '\nCanceling the installation procedures.'
+               return
             fi
-         else
-            echo -e 'EcryptFS installation failed.'\
-             '\nPlease check your internet connection to proceed with the'\
-             '\n.Fluidity installation.'\
-             '\nCanceling the installation procedures.'
-            return
          fi
-      fi
-      
-      # Correct the dependencies and do some cleaning before proceeding
-      # to the next application.
-      sleep 10
-      sudo apt-get install --fix-broken --assume-yes
-      sleep 10
-      sudo apt --fix-broken install
-      sleep 10
+         
+         rm *.deb
       
       # Verify and if not present install  "EXPECT"
       if ! [ -x "$(command -v expect)" ]; then
@@ -1857,49 +1808,30 @@ echo -e 'local random_client_port='$random_ssh_port >> \
          if ! [ -x "$(command -v ecryptfsd)" ]; then
             if ping -c 3 8.8.8.8; then
             
-               DEPS="gettext-base keyutils libassuan0 libgpg-error0 libc6 libkeyutils1 libpam-runtime 
-               libgpg-error0 libpam0g libgpgme11 libtspi1 cryptsetup cryptsetup lsof rsync libnss3"
+               DEPS="libtspi1"
                sudo apt-get install $DEPS
                
                if lscpu | grep ARM; then
                
                   wget http://snapshot.debian.org/archive/debian-debug/20200802T203936Z/pool/main/e/ecryptfs-utils/libecryptfs1-dbgsym_111-5_armhf.deb
                   wget http://snapshot.debian.org/archive/debian/20200802T204950Z/pool/main/e/ecryptfs-utils/libecryptfs1_111-5_armhf.deb
-                  wget http://snapshot.debian.org/archive/debian/20200802T204950Z/pool/main/e/ecryptfs-utils/libecryptfs-dev_111-5_armhf.deb
                   wget http://snapshot.debian.org/archive/debian-debug/20200802T203936Z/pool/main/e/ecryptfs-utils/ecryptfs-utils-dbgsym_111-5_armhf.deb
                   wget http://snapshot.debian.org/archive/debian/20200802T204950Z/pool/main/e/ecryptfs-utils/ecryptfs-utils_111-5_armhf.deb
                
                   sudo dpkg -i libecryptfs1_111-5_armhf.deb
                   sudo dpkg -i libecryptfs1-dbgsym_111-5_armhf.deb
-                  sudo dpkg -i libecryptfs-dev_111-5_armhf.deb
                   sudo dpkg -i ecryptfs-utils_111-5_armhf.deb
                   sudo dpkg -i ecryptfs-utils-dbgsym_111-5_armhf.deb
                   
-               elif lscpu | grep AMD; then
-               
-                  wget http://snapshot.debian.org/archive/debian-debug/20200802T203936Z/pool/main/e/ecryptfs-utils/libecryptfs1-dbgsym_111-5_amd64.deb
-                  wget http://snapshot.debian.org/archive/debian/20200802T204950Z/pool/main/e/ecryptfs-utils/libecryptfs1_111-5_amd64.deb
-                  wget http://snapshot.debian.org/archive/debian/20200802T204950Z/pool/main/e/ecryptfs-utils/libecryptfs-dev_111-5_amd64.deb
-                  wget http://snapshot.debian.org/archive/debian-debug/20200802T203936Z/pool/main/e/ecryptfs-utils/ecryptfs-utils-dbgsym_111-5_amd64.deb
-                  wget http://snapshot.debian.org/archive/debian/20200802T204950Z/pool/main/e/ecryptfs-utils/ecryptfs-utils_111-5_amd64.deb
-                  
-                  sudo dpkg -i libecryptfs1_111-5_amd64.deb
-                  sudo dpkg -i libecryptfs1-dbgsym_111-5_amd64.deb
-                  sudo dpkg -i libecryptfs-dev_111-5_amd64.deb
-                  sudo dpkg -i ecryptfs-utils_111-5_amd64.deb
-                  sudo dpkg -i ecryptfs-utils-dbgsym_111-5_amd64.deb
-                  
-               elif lscpu | grep GenuineIntel; then
+               else
                
                   wget http://snapshot.debian.org/archive/debian-debug/20200802T203936Z/pool/main/e/ecryptfs-utils/libecryptfs1-dbgsym_111-5_i386.deb
                   wget http://snapshot.debian.org/archive/debian/20200802T204950Z/pool/main/e/ecryptfs-utils/libecryptfs1_111-5_i386.deb
-                  wget http://snapshot.debian.org/archive/debian/20200802T204950Z/pool/main/e/ecryptfs-utils/libecryptfs-dev_111-5_i386.deb
                   wget http://snapshot.debian.org/archive/debian-debug/20200802T203936Z/pool/main/e/ecryptfs-utils/ecryptfs-utils-dbgsym_111-5_i386.deb
                   wget http://snapshot.debian.org/archive/debian/20200802T204950Z/pool/main/e/ecryptfs-utils/ecryptfs-utils_111-5_i386.deb
                   
                   sudo dpkg -i libecryptfs1_111-5_i386.deb
                   sudo dpkg -i libecryptfs1-dbgsym_111-5_i386.deb
-                  sudo dpkg -i libecryptfs-dev_111-5_i386.deb
                   sudo dpkg -i ecryptfs-utils_111-5_i386.deb
                   sudo dpkg -i ecryptfs-utils-dbgsym_111-5_i386.deb
                   
@@ -1913,13 +1845,7 @@ echo -e 'local random_client_port='$random_ssh_port >> \
             fi
          fi
          
-         # Correct the dependencies and do some cleaning before proceeding
-         # to the next application.
-         sleep 10
-         sudo apt-get install --fix-broken --assume-yes
-         sleep 10
-         sudo apt --fix-broken install
-         sleep 10
+         rm *.deb
          
          # Verify and if not present install  "EXPECT"
          if ! [ -x "$(command -v expect)" ]; then
