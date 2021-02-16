@@ -1037,7 +1037,6 @@ fluidityClientConfiguration () {
          fi
       fi
       # Verify and if not present install the 111.5 ecryptfs version
-      # Verify and if not present install the 111.5 ecryptfs version
          if ! [ -x "$(command -v ecryptfsd)" ]; then
             if ping -c 3 8.8.8.8; then
             
@@ -4025,7 +4024,7 @@ runFluidity () {
    
    # Safety check 6: Check whether another ACTIVE link exists with
    # the same port.
-   if netstat -atnp 2>/dev/null | grep $4; then
+   if netstat -atnp 2>/dev/null | grep -w $4; then
       # Information message to user.
       echo "Server port is used by another resource. Please use another port."
       return
@@ -6503,7 +6502,7 @@ END_CAT
 # Generates: Nothing
 
 # Invokes Functions: 
-# 1. injectTheListOfServerRoutes, no args.
+# 1. injectTheListOfServerRoutes, $1
 # 2. injectTheListOfClientRoutes, with args: $1, $3, $4
 
 # Calls the script: NONE
@@ -6526,7 +6525,7 @@ injectTheListOfFluidityConnectionRoutes () {
       
          # Inject the routes contained into: injectTheListOfServerRoutes
          # Invoke injectTheListOfServerRoutes
-         injectTheListOfServerRoutes
+         injectTheListOfServerRoutes $1
          
          # Inject the routes contained into: injecTheListOfClientRoutes
          # Invoke injectTheListOfServerRoutes
@@ -6546,7 +6545,8 @@ injectTheListOfFluidityConnectionRoutes () {
 
 }
 
-# Arguments: NONE
+# Arguments: ($1)
+# $1: .Fluidity Connection ID [SSH_ID.SSL_ID]
 
 # Sourced Variables: NONE
 
@@ -6566,8 +6566,13 @@ injectTheListOfFluidityConnectionRoutes () {
 # inject the server VPN routes.
 injectTheListOfServerRoutes () {
    
+   local SSH_ID=${1%.*}
+   local SSL_ID=${1##*.}
+   
    # Do a local execution.
-   bash ~/Fluidity_Server/listOfServerRoutes.sh
+   bash <(cat ~/Fluidity_Server/listOfServerRoutes.sh \
+   | grep -w "$SSH_ID $SSL_ID" \
+   | cut -d " " -f 3-9)
    
 }
 
@@ -6640,7 +6645,7 @@ reportWhenLinkIsEstablished () {
       if [[ $(getNetstatConnectionStatus $2) == "ESTABLISHED" ]]; then
       
          # Do a full status report for that specific connection.
-         netstat -atnp 2>/dev/null | grep -e $2
+         netstat -atnp 2>/dev/null | grep -w $2
          # Once you report, break the loop.
          break
          
@@ -6686,7 +6691,7 @@ reportWhenFirewallRulesAreAdded () {
       if [[ $(getNetstatConnectionStatus $2) == "ESTABLISHED" ]]; then
       
          # Do a UFW status report for that specific port.
-         sudo ufw status verbose | grep -e $2
+         sudo ufw status verbose | grep -w $2
          # Once you report, break the loop.
          break
          
@@ -6731,7 +6736,7 @@ reportWhenFirewallRulesAreRemoved () {
       if ! [[ $(getNetstatConnectionStatus $2) == "ESTABLISHED" ]]; then
       
          # Do a UFW status report for that specific port.
-         sudo ufw status verbose | grep -e $2
+         sudo ufw status verbose | grep -w $2
          # Inform the user that the firewall rules sucessfully removed.
          echo "Firewall rules for port $2 sucessfully removed."
          # Break the loop.
@@ -7411,7 +7416,7 @@ getNetstatConnectionStatus () {
 
    # Use netstat and pipe the output to grep. Grep will search the
    # string and return a result according to argument $1.
-   local netstat_connection_status_string=$(netstat -atnp 2>/dev/null | grep $1)
+   local netstat_connection_status_string=$(netstat -atnp 2>/dev/null | grep -w $1)
       
    # Use cut to compartmentalize the line. Fetch the sixth element. Use
    # the whitespace ' ' as a delimeter character. Save the result
@@ -7687,13 +7692,15 @@ removeInternalInterface () {
 # .Fluidity connection (i.e. SSL_ID).
 
 
-# Arguments: ($1), ($2), ($3), ($4), ($5), ($6)
-# $1: Fixed value: ip
-# $2: Fixed value: route
-# $3: Fixed value: add
-# $4: IP network and subnet mask
-# $5: Fixed value: via
-# $6: Exit IP
+# Arguments: ($1), ($2), ($3), ($4), ($5), ($6), ($7), ($8)
+# $1: .Fluidity Client (SSH) Connection ID.
+# $2: .Fluidity Virtual Circuit (SSL) Connection ID.
+# $3: Fixed value: ip 
+# $4: Fixed value: route
+# $5: Fixed value: add
+# $6: IP network and subnet mask
+# $7: Fixed value: via
+# $8: Exit IP 
 
 # Sourced Variables: NONE
 
@@ -7726,16 +7733,16 @@ addServerRoute () {
       
    fi
    
-   # Safety check 2: Number of arguments should be no less than 6.
-   if [ "$#" -ne 6 ]; then
+   # Safety check 2: Number of arguments should be no less than 8.
+   if [ "$#" -ne 8 ]; then
       echo "Illegal number of parameters"
       return
    fi
    
    # Safety check 3: Force a specific command syntax.
-   if ! [[ $1 == "ip" && $2 == "route" && $3 == "add" && $5 == "via" ]]; then
+   if ! [[ $3 == "ip" && $4 == "route" && $5 == "add" && $7 == "via" ]]; then
       echo "Command should be in the form of:" 
-      echo "ip route add x.y.z.w/mask via x.y.z.w"
+      echo "client_id connection_id ip route add x.y.z.w/mask via x.y.z.w"
       return
    fi
    
@@ -7743,7 +7750,7 @@ addServerRoute () {
    # list.
    if [[ -e ~/Fluidity_Server/listOfServerRoutes.sh ]]; then
 
-      if cat ~/Fluidity_Server/listOfServerRoutes.sh | grep "sudo $1 $2 $3 $4 $5 $6"; then
+      if cat ~/Fluidity_Server/listOfServerRoutes.sh | grep "$1 $2 sudo $3 $4 $5 $6 $7 $8"; then
          echo "Route already exists in serverRoutes.sh"
          return
       fi
@@ -7756,7 +7763,7 @@ addServerRoute () {
       echo "Creating serverRoutes.sh"
    
       # Add the route to server list.
-      echo "sudo $1 $2 $3 $4 $5 $6" >> ~/Fluidity_Server/listOfServerRoutes.sh
+      echo "$1 $2 sudo $3 $4 $5 $6 $7 $8" >> ~/Fluidity_Server/listOfServerRoutes.sh
       
       # Change permissions.
       chmod 700 ~/Fluidity_Server/listOfServerRoutes.sh
@@ -7764,19 +7771,21 @@ addServerRoute () {
    else
    
       # Add the route to server VPN route list.
-      echo "sudo $1 $2 $3 $4 $5 $6" >> ~/Fluidity_Server/listOfServerRoutes.sh
+      echo "$1 $2 sudo $3 $4 $5 $6 $7 $8" >> ~/Fluidity_Server/listOfServerRoutes.sh
       
    fi
    
 }
 
-# Arguments: ($1), ($2), ($3), ($4), ($5), ($6)
-# $1: Fixed value: ip 
-# $2: Fixed value: route
-# $3: Fixed value: add
-# $4: IP network and subnet mask
-# $5: Fixed value: via
-# $6: Exit IP
+# Arguments: ($1), ($2), ($3), ($4), ($5), ($6), ($7), ($8)
+# $1: .Fluidity Client (SSH) Connection ID.
+# $2: .Fluidity Virtual Circuit (SSL) Connection ID.
+# $3: Fixed value: ip 
+# $4: Fixed value: route
+# $5: Fixed value: add
+# $6: IP network and subnet mask
+# $7: Fixed value: via
+# $8: Exit IP 
 
 # Sourced Variables: NONE
 
@@ -7807,32 +7816,45 @@ removeServerRoute () {
       
    fi
    
-   # Safety check 2: Number of arguments should be no less than 6.
-   if [ "$#" -ne 6 ]; then
+   # Safety check 2: listOfServerRoutes.sh should exist
+   if [ ! -f ~/Fluidity_Server/listOfServerRoutes.sh ]; then
+      echo "Nothing to delete. listOfServerRoutes.sh is missing."
+      return
+   fi
+   
+   # Safety check 3: Number of arguments should be no less than 8.
+   if [ "$#" -ne 8 ]; then
       echo "Illegal number of parameters"
       return
    fi
    
-   # Safety check 3: Force a specific command syntax.
-   if ! [[ $1 == "ip" && $2 == "route" && $3 == "add" && $5 == "via" ]]; then
+   # Safety check 4: Force a specific command syntax.
+   if ! [[ $3 == "ip" && $4 == "route" && $5 == "add" && $7 == "via" ]]; then
       echo "Command should be in the form of:" 
-      echo "ip route add x.y.z.w/mask via x.y.z.w"
+      echo "client_id connection_id ip route add x.y.z.w/mask via x.y.z.w"
       return
    fi
    
-   # Safety check 4: Cancel execution if the route is absent from the 
+   # Safety check 5: Cancel execution if the route is absent from the 
    # server list.
-   if ! cat ~/Fluidity_Server/listOfServerRoutes.sh | grep "sudo $1 $2 $3 $4 $5 $6"; then
+   if ! cat ~/Fluidity_Server/listOfServerRoutes.sh | grep "$1 $2 sudo $3 $4 $5 $6 $7 $8"; then
       echo "Route does not exist in serverRoutes.sh"
       return
    fi
    
    # Remove the route from the VPN server route list.
-   grep -F -v "sudo $1 $2 $3 $4 $5 $6" \
+   grep -F -v "$1 $2 sudo $3 $4 $5 $6 $7 $8" \
    ~/Fluidity_Server/listOfServerRoutes.sh > \
-   ~/Fluidity_Server/listOfServerRoutes.sh.tmp && \
-   mv ~/Fluidity_Server/listOfServerRoutes.sh.tmp \
-   ~/Fluidity_Server/listOfServerRoutes.sh
+   ~/Fluidity_Server/listOfServerRoutes.sh.tmp
+   
+   mv ~/Fluidity_Server/listOfServerRoutes.sh.tmp ~/Fluidity_Server/listOfServerRoutes.sh
+   
+   # If listOfServerRoutes.sh is empty
+	if ! cat ~/Fluidity_Server/listOfServerRoutes.sh | grep "sudo ip route add" > /dev/null 2>&1; then
+		echo "listOfServerRoutes.sh is empty. Deleting..."
+		# then delete listOfServerRoutes.sh
+		rm ~/Fluidity_Server/listOfServerRoutes.sh
+	fi
    
 }
 
@@ -7966,6 +7988,12 @@ removeClientRoute () {
       
    fi
    
+   # Safety check 2: listOfClientRoutes.$1.$2.sh should exist
+   if [ -f ~/Fluidity_Server/client.$1/connection.$1.$2.sh ]; then
+      echo "Nothing to delete. client.$1/connection.$1.$2.sh is missing."
+      return
+   fi
+   
    # Safety check 2: Number of arguments should be no less than 8.
    if [ "$#" -ne 8 ]; then
       echo "Illegal number of parameters"
@@ -7995,8 +8023,15 @@ removeClientRoute () {
    # Remove the route from the client VPN route list.
    grep -F -v "sudo $3 $4 $5 $6 $7 $8" \
    ~/Fluidity_Server/client.$1/connection.$1.$2/listOfClientRoutes.$1.$2.sh > \
-   ~/Fluidity_Server/client.$1/connection.$1.$2/listOfClientRoutes.$1.$2.sh.tmp && \
-   mv ~/Fluidity_Server/client.$1/connection.$1.$2/listOfClientRoutes.$1.$2.sh.tmp \
-   ~/Fluidity_Server/client.$1/connection.$1.$2/listOfClientRoutes.$1.$2.sh
+   ~/Fluidity_Server/client.$1/connection.$1.$2/listOfClientRoutes.$1.$2.sh.tmp
+
+   mv ~/Fluidity_Server/client.$1/connection.$1.$2/listOfClientRoutes.$1.$2.sh.tmp ~/Fluidity_Server/client.$1/connection.$1.$2/listOfClientRoutes.$1.$2.sh
+   
+   # If listOfClientRoutes.$1.$2.sh is empty
+   if ! cat ~/Fluidity_Server/client.$1/connection.$1.$2/listOfClientRoutes.$1.$2.sh | grep "sudo ip route add"  > /dev/null 2>&1; then
+      echo "client.$1/connection.$1.$2/listOfClientRoutes.$1.$2.sh is empty. Deleting..."
+      # then delete listOfClientRoutes.$1.$2.sh
+      rm ~/Fluidity_Server/client.$1/connection.$1.$2/listOfClientRoutes.$1.$2.sh
+   fi
    
 }
