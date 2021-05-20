@@ -1120,7 +1120,7 @@ fluidityClientConfiguration () {
    # Invoke giveAnEntropyBoost
    giveAnEntropyBoost
    
-   mkdir ~/Fluidity_Client
+   mkdir '~/'Fluidity_Client
    
 }
 
@@ -1215,6 +1215,22 @@ addFluidityClient () {
       echo "Activate SSH on target machine"
       return
    fi
+   
+   # Safety check 6: Do a client password verification check. 
+   
+   # heefhEKX
+   # Add the remote machine to known hosts (x03 sends a Ctrl-C),
+   # so as to allow sshpass to proceed.
+expect << EOF
+       spawn ssh -o "StrictHostKeyChecking no" $5@$3
+       expect "password:"
+       send \x03
+EOF
+   
+   if ! sshpass -p $4 ssh $5@$3 'exit'; then
+	  echo "Incorrect client password."
+      return
+   fi
 
    # Safety check 6: Verify that local entropy is above target value 1000. 
    if [[ $(checkLocalEntropy) == 1 ]]; then
@@ -1286,16 +1302,6 @@ EOF
        # (Added later in fluidityRemoteClientConfiguration).
    echo -e 'Host '$3'\n'\
    '  IdentityFile ~/.ssh/client.'$1 >> ~/.ssh/config
-
-   # heefhEKX
-   # Add the remote machine to known hosts (x03 sends a Ctrl-C)
-expect << EOF
-       spawn ssh $5@$3
-       expect "(yes/no)?"
-       send "yes\r"
-       expect "password:"
-       send \x03
-EOF
 
    # Transmit the SSH credentials to the remote machine.
    # sshpass utility will be used to provide the log in password by 
@@ -1898,7 +1904,7 @@ echo -e 'local random_client_port='$random_ssh_port >> \
          sudo truncate -s 0 /root/.ecryptfs/sig-cache.txt
       fi
    
-      mkdir ~/Fluidity_Client
+      mkdir '~/'Fluidity_Client
 END_CAT
    
       chmod 700 ~/Fluidity_Server/Generated_Scripts/genSCRIPT_fluidityRemoteClientConfiguration.sh
@@ -2073,7 +2079,7 @@ EOF
             
          fi
          
-         mkdir -p ~/Fluidity_Client
+         mkdir -p '~/'Fluidity_Client
 END_CAT
 
       chmod 700 ~/Fluidity_Server/Generated_Scripts/genSCRIPT_fluidityRemoteClientFirewallConfiguration.sh
@@ -2778,7 +2784,7 @@ removeFluidityConnection () {
    # heefhEKX
    # SSH remotely execute 
    # Erase the client folder.
-   ssh $client_username@$client_IP_address rm -r ~/Fluidity_Client/connection.$1.$2
+   ssh $client_username@$client_IP_address rm -r '~/'Fluidity_Client/connection.$1.$2
 }
 
 # Arguments: ($1), ($2)
@@ -5529,7 +5535,7 @@ runPersistentSOCATClient () {
          
          # heefhEKX
          # Invoke copyDoNotEncryptToken
-         if ! ssh $5@$4 'ls ~/Fluidity_Client/connection.'$1'/tokenSlot/resetSSL.txt'; then
+         if ! ssh $5@$4 ls '~/'Fluidity_Client/connection.$1/tokenSlot/resetSSL.txt; then
             copyDoNotEncryptToken $1 $4 $5
          fi
          
@@ -6105,7 +6111,7 @@ encryptClient () {
    # heefhEKX
    # Execute through SSH and unmount target directory
    # ~/Fluidity_Client/Connection$1 from ecryptfs.
-   ssh $3@$2 sudo umount ~/Fluidity_Client/connection.$1
+   ssh $3@$2 sudo umount '~/'Fluidity_Client/connection.$1
 
 }
 
@@ -6185,7 +6191,7 @@ deleteTokenFromClient () {
 verifyThatResetSSLisMissing () {
    
    # heefhEKX
-   if [ "$(ssh $3@$2 ls ~/Fluidity_Client/connection.$1/tokenSlot/resetSSL.txt)" ]; then
+   if [ $(ssh $3@$2 ls '~/'Fluidity_Client/connection.$1/tokenSlot/resetSSL.txt) ]; then
       # Message to calling function.
       echo "verifyThatResetSSLisMissing FAILED"
    else
@@ -6230,14 +6236,15 @@ verifyThatSSLCertificatesExist () {
          # Message to calling function.
          echo "verifyThatSSLCertificatesExist FAILED"
          return
+		 
       # heefhEKX
-      elif [ ! $(ssh $3@$2 ls -A ~/Fluidity_Client/connection.$1/servercon.$1.crt) ]; then
+      elif [ ! $(ssh $3@$2 ls -A '~/'Fluidity_Client/connection.$1/servercon.$1.crt) ]; then
          echo "servercon.$1.crt is missing."
          # Message to calling function.
          echo "verifyThatSSLCertificatesExist FAILED"
          return
       # heefhEKX
-      elif [ ! $(ssh $3@$2 ls -A ~/Fluidity_Client/connection.$1/clientcon.$1.pem) ]; then
+      elif [ ! $(ssh $3@$2 ls -A '~/'Fluidity_Client/connection.$1/clientcon.$1.pem) ]; then
          echo "clientcon.$1.pem is missing."
          # Message to calling function.
          echo "verifyThatSSLCertificatesExist FAILED"
@@ -6309,7 +6316,7 @@ doAClientServerMD5EquivalencyCheck () {
    if [[ ! -e ~/Fluidity_Server/client.$SSH_ID/connection.$1/genSCRIPT_retrieveClientPemMD5.sh ]]; then
    
       cat <<- 'END_CAT' > ~/Fluidity_Server/client.$SSH_ID/connection.$1/genSCRIPT_retrieveClientPemMD5.sh
-      cd ~/Fluidity_Client/connection.$1
+      cd '~/'Fluidity_Client/connection.$1
 
       pass=$(echo $hashed_pass | openssl enc -aes-128-cbc -md sha512 -pbkdf2 -iter 100000 -a -d -salt -pass pass:$2)
       expect_out=$(expect -c '
@@ -6339,7 +6346,7 @@ END_CAT
    local client_pem_md5=$(ssh $3@$2 'bash -s' < ~/Fluidity_Server/client.$SSH_ID/connection.$1/genSCRIPT_retrieveClientPemMD5.sh $1 $client_bogus_pass)
    # echo "client_pem_md5 is: $client_pem_md5"
    # heefhEKX
-   local server_crt_md5=$(ssh $3@$2 openssl x509 -noout -modulus -in ~/Fluidity_Client/connection.$1/servercon.$1.crt | openssl md5)
+   local server_crt_md5=$(ssh $3@$2 openssl x509 -noout -modulus -in '~/'Fluidity_Client/connection.$1/servercon.$1.crt | openssl md5)
    # echo "server_crt_md5 is: $server_crt_md5"
    
    if [[ ${server_pem_md5:9:32} == ${server_crt_md5:9:32} ]]\
@@ -6424,7 +6431,7 @@ doAClientServerSHA256EquivalencyCheck () {
    if [[ ! -e ~/Fluidity_Server/client.$SSH_ID/connection.$1/genSCRIPT_retrieveClientPemSHA256.sh ]]; then
    
       cat <<- 'END_CAT' > ~/Fluidity_Server/client.$SSH_ID/connection.$1/genSCRIPT_retrieveClientPemSHA256.sh
-      cd ~/Fluidity_Client/connection.$1
+      cd '~/'Fluidity_Client/connection.$1
 
       pass=$(echo $hashed_pass | openssl enc -aes-128-cbc -md sha512 -pbkdf2 -iter 100000 -a -d -salt -pass pass:$2)
       expect_out=$(expect -c '
@@ -6454,7 +6461,7 @@ END_CAT
    local client_pem_SHA256=$(ssh $3@$2 'bash -s' < ~/Fluidity_Server/client.$SSH_ID/connection.$1/genSCRIPT_retrieveClientPemSHA256.sh $1 $client_bogus_pass)
    # heefhEKX
    # echo "client_pem_SHA256 is: $client_pem_SHA256"
-   local server_crt_SHA256=$(ssh $3@$2 openssl x509 -noout -modulus -in ~/Fluidity_Client/connection.$1/servercon.$1.crt | openssl dgst -sha256)
+   local server_crt_SHA256=$(ssh $3@$2 openssl x509 -noout -modulus -in '~/'Fluidity_Client/connection.$1/servercon.$1.crt | openssl dgst -sha256)
    # echo "server_crt_SHA256 is: $server_crt_SHA256"
    
    if [[ ${server_pem_SHA256:9:32} == ${server_crt_SHA256:9:32} ]]\
@@ -7543,7 +7550,7 @@ setInternalInterface () {
             
       done
       
-   elif [ -d ~/Fluidity_Client ]; then
+   elif [ -d '~/'Fluidity_Client ]; then
       
       client_IP_address=$(sudo ufw status | grep "HFBCvIa7h" | tr -s " " | cut -d' ' -f 6)
       
@@ -7620,7 +7627,7 @@ removeInternalInterface () {
             
       done
       
-   elif [ -d ~/Fluidity_Client ]; then
+   elif [ -d '~/'Fluidity_Client ]; then
       
       client_IP_address=$(sudo ufw status | grep "HFBCvIa7h" | tr -s " " | cut -d' ' -f 6)
       
