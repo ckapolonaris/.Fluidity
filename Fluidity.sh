@@ -7550,7 +7550,7 @@ setInternalInterface () {
             
       done
       
-   elif [ -d '~/'Fluidity_Client ]; then
+   elif [ -d ~/Fluidity_Client ]; then
       
       client_IP_address=$(sudo ufw status | grep "HFBCvIa7h" | tr -s " " | cut -d' ' -f 6)
       
