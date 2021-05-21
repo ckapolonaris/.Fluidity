@@ -2616,7 +2616,7 @@ remoteSeekAndEncryptDaemonInstallation () {
       sudo echo -e \
          '\nsudo mv ~/Fluidity_Client/FLdaemon_SeekAndEncrypt.sh \\\n'\
       '/usr/bin'\
-         '\nsudo mv ~/  \\\n'\
+         '\nsudo mv ~/Fluidity_Client/FLdaemon_SeekAndEncrypt.service \\\n'\
       '/etc/systemd/system'\
          '\nsudo systemctl enable FLdaemon_SeekAndEncrypt.service' \
       '\nsudo systemctl start FLdaemon_SeekAndEncrypt.service' \
