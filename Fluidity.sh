@@ -2079,7 +2079,7 @@ EOF
             
          fi
          
-         mkdir -p '~/'Fluidity_Client
+         mkdir -p ~/Fluidity_Client
 END_CAT
 
       chmod 700 ~/Fluidity_Server/Generated_Scripts/genSCRIPT_fluidityRemoteClientFirewallConfiguration.sh
@@ -2603,7 +2603,7 @@ remoteSeekAndEncryptDaemonInstallation () {
    # FLdaemon_SeekAndEncrypt.service to client machine.
    scp ~/Fluidity_Server/Generated_Scripts/FLdaemon_SeekAndEncrypt.sh \
     ~/Fluidity_Server/Generated_Scripts/FLdaemon_SeekAndEncrypt.service \
-    $2@$1:Fluidity_Client
+    $2@$1:'~/'Fluidity_Client
  
    # Generate genSCRIPT_moveFilesAndActivateDaemon.sh and store it in
    # ~/Fluidity_Server/Generated_Scripts
@@ -2616,7 +2616,7 @@ remoteSeekAndEncryptDaemonInstallation () {
       sudo echo -e \
          '\nsudo mv ~/Fluidity_Client/FLdaemon_SeekAndEncrypt.sh \\\n'\
       '/usr/bin'\
-         '\nsudo mv ~/Fluidity_Client/FLdaemon_SeekAndEncrypt.service \\\n'\
+         '\nsudo mv ~/  \\\n'\
       '/etc/systemd/system'\
          '\nsudo systemctl enable FLdaemon_SeekAndEncrypt.service' \
       '\nsudo systemctl start FLdaemon_SeekAndEncrypt.service' \
